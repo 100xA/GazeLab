@@ -3,16 +3,18 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Non-physics overlay: gaze trail, selection feedback, status panel and the
+/// Non-physics overlay: gaze trail, selection feedback, status card and the
 /// gaze-only menus (mode selection at start, restart / change mode after game over).
+/// All layout values are given for a 1080p screen and scaled with the Game view height,
+/// so the HUD keeps its size on 4K / high-DPI displays.
 /// </summary>
 public class GazeHud : MonoBehaviour
 {
     struct TracePoint { public Vector2 point; public float time; }
-    struct GazeButton { public Rect rect; public string title, body; public System.Action action; }
+    struct GazeButton { public Rect rect; public string number, title, body; public System.Action action; }
 
     const float MenuDwellSeconds = 1f;
-    const float ButtonTolerancePixels = 40f;   // gaze slightly outside a button still counts
+    const float ButtonTolerance = 40f;             // design px: gaze slightly outside a button still counts
     const float ButtonLossToleranceSeconds = 0.3f; // blinks / jitter keep the progress frozen
     static readonly GameController.SelectionMode[] MenuModes =
     {
@@ -20,48 +22,70 @@ public class GazeHud : MonoBehaviour
         GameController.SelectionMode.Nod, GameController.SelectionMode.Button
     };
 
+    // Palette
+    static readonly Color Panel = new Color(0.035f, 0.06f, 0.12f, 0.88f);
+    static readonly Color PanelSolid = new Color(0.035f, 0.06f, 0.12f, 0.97f);
+    static readonly Color Edge = new Color(0.35f, 0.85f, 1f, 0.28f);
+    static readonly Color Accent = new Color(0.35f, 0.88f, 1f);
+    static readonly Color Good = new Color(0.32f, 1f, 0.58f);
+    static readonly Color Warn = new Color(1f, 0.74f, 0.25f);
+    static readonly Color Bad = new Color(1f, 0.38f, 0.38f);
+    static readonly Color Muted = new Color(0.62f, 0.7f, 0.82f);
+    static readonly Color Track = new Color(1f, 1f, 1f, 0.1f);
+
     readonly List<TracePoint> trace = new List<TracePoint>();
     readonly List<GazeButton> buttons = new List<GazeButton>();
     GameController game;
     GazeInput input;
-    Texture2D dot;
-    GUIStyle titleStyle, labelStyle, bigStyle, buttonTitleStyle, buttonBodyStyle, centerStyle;
+    Texture2D dot, round, ring;
+    GUIStyle roundStyle, ringStyle, caption, value, body, bodyMuted, small, chip, center, huge, tileTitle, tileBody, badge, segment;
+    float stylesForScale = -1f;
     int hoveredButton = -1;
     float buttonDwell, lastButtonHit;
     bool previousSimulation;
 
-    static Rect Panel { get { return new Rect(12, 12, Mathf.Min(640, Screen.width - 24), 166); } }
+    /// <summary>HUD scale: 1 at 1080p, larger on 4K Game views.</summary>
+    static float Ui { get { return Mathf.Clamp(Screen.height / 1080f, 0.75f, 3f); } }
+    static float VirtualWidth { get { return Screen.width / Ui; } }
+    static float VirtualHeight { get { return Screen.height / Ui; } }
+    static Rect R(float x, float y, float w, float h) { float s = Ui; return new Rect(x * s, y * s, w * s, h * s); }
+
+    // Design-space layout of the status card and the input row below it.
+    static readonly Rect CardDesign = new Rect(16, 16, 384, 150);
+    static readonly Rect ControlsDesign = new Rect(16, 174, 384, 28);
+    static Rect PanelArea { get { return R(16, 16, 384, 186); } }
 
     public static bool ControlsContain(Vector2 screenPoint)
     {
         Vector2 guiPoint = new Vector2(screenPoint.x, Screen.height - screenPoint.y);
-        if (Panel.Contains(guiPoint)) return true;
+        if (PanelArea.Contains(guiPoint)) return true;
         GameController controller = FindObjectOfType<GameController>();
         if (controller == null || !(controller.InMenu || controller.GameOver)) return false;
         foreach (Rect rect in OverlayRects(controller)) if (rect.Contains(guiPoint)) return true;
         return false;
     }
 
-    /// <summary>GUI-space rectangles of the gaze buttons for the current overlay.</summary>
+    /// <summary>GUI-space (pixel) rectangles of the gaze buttons for the current overlay.</summary>
     static List<Rect> OverlayRects(GameController controller)
     {
         var rects = new List<Rect>();
+        float vw = VirtualWidth, vh = VirtualHeight;
         if (controller.InMenu)
         {
             float gap = 24f;
-            float top = Mathf.Max(Panel.yMax + 70f, Screen.height * 0.5f - 150f);
-            float width = Mathf.Min(440f, (Screen.width - 3 * gap) / 2f);
-            float height = Mathf.Clamp((Screen.height - top - 2 * gap) / 2f, 80f, 170f);
-            float left = Screen.width * 0.5f - width - gap * 0.5f;
+            float width = Mathf.Min(420f, (vw - 3 * gap) / 2f);
+            float height = 150f;
+            float top = Mathf.Max(CardDesign.yMax + 110f, vh * 0.5f - height - gap * 0.5f + 30f);
+            float left = vw * 0.5f - width - gap * 0.5f;
             for (int i = 0; i < 4; i++)
-                rects.Add(new Rect(left + (i % 2) * (width + gap), top + (i / 2) * (height + gap), width, height));
+                rects.Add(R(left + (i % 2) * (width + gap), top + (i / 2) * (height + gap), width, height));
         }
         else if (controller.GameOver)
         {
-            float width = 300f, height = 96f, gap = 30f;
-            float y = Screen.height * 0.5f + 20f;
-            rects.Add(new Rect(Screen.width * 0.5f - width - gap * 0.5f, y, width, height));
-            rects.Add(new Rect(Screen.width * 0.5f + gap * 0.5f, y, width, height));
+            float width = 280f, height = 104f, gap = 24f;
+            float y = vh * 0.5f + 10f;
+            rects.Add(R(vw * 0.5f - width - gap * 0.5f, y, width, height));
+            rects.Add(R(vw * 0.5f + gap * 0.5f, y, width, height));
         }
         return rects;
     }
@@ -70,10 +94,61 @@ public class GazeHud : MonoBehaviour
     {
         game = GetComponent<GameController>();
         input = GetComponent<GazeInput>();
-        dot = new Texture2D(32, 32, TextureFormat.RGBA32, false);
-        for (int y = 0; y < 32; y++) for (int x = 0; x < 32; x++)
-            dot.SetPixel(x, y, Vector2.Distance(new Vector2(x, y), new Vector2(15.5f, 15.5f)) <= 15 ? Color.white : Color.clear);
-        dot.Apply();
+        dot = MakeRound(32, 15.5f);
+    }
+
+    static Texture2D MakeRound(int size, float radius, float thickness = 0f)
+    {
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+        float c = (size - 1) / 2f;
+        for (int y = 0; y < size; y++) for (int x = 0; x < size; x++)
+        {
+            float d = Vector2.Distance(new Vector2(x, y), new Vector2(c, c));
+            float alpha = Mathf.Clamp01(radius - d + 0.5f);
+            if (thickness > 0f) alpha *= Mathf.Clamp01(d - (radius - thickness) + 0.5f); // ring only
+            tex.SetPixel(x, y, new Color(1, 1, 1, alpha));
+        }
+        tex.Apply();
+        return tex;
+    }
+
+    /// <summary>Rounded-rectangle 9-slice texture; corner radius scales with the HUD.</summary>
+    void BuildStyles()
+    {
+        float s = Ui;
+        stylesForScale = s;
+        int radius = Mathf.Max(4, Mathf.RoundToInt(10 * s));
+        if (round != null) Destroy(round);
+        if (ring != null) Destroy(ring);
+        round = MakeRound(radius * 2 + 2, radius);
+        ring = MakeRound(radius * 2 + 2, radius, Mathf.Max(1f, Mathf.Round(1.2f * s)));
+        roundStyle = new GUIStyle { border = new RectOffset(radius, radius, radius, radius) };
+        roundStyle.normal.background = round;
+        ringStyle = new GUIStyle { border = new RectOffset(radius, radius, radius, radius) };
+        ringStyle.normal.background = ring;
+
+        System.Func<int, FontStyle, TextAnchor, GUIStyle> make = (size, fontStyle, anchor) =>
+        {
+            var st = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = Mathf.RoundToInt(size * s), fontStyle = fontStyle, alignment = anchor,
+                wordWrap = true, padding = new RectOffset(0, 0, 0, 0), margin = new RectOffset(0, 0, 0, 0)
+            };
+            st.normal.textColor = Color.white;
+            return st;
+        };
+        caption = make(11, FontStyle.Bold, TextAnchor.UpperLeft);
+        value = make(34, FontStyle.Bold, TextAnchor.UpperLeft);
+        body = make(14, FontStyle.Normal, TextAnchor.MiddleLeft);
+        bodyMuted = make(13, FontStyle.Normal, TextAnchor.MiddleLeft);
+        small = make(12, FontStyle.Normal, TextAnchor.MiddleLeft);
+        chip = make(12, FontStyle.Bold, TextAnchor.MiddleCenter);
+        segment = make(13, FontStyle.Bold, TextAnchor.MiddleCenter);
+        center = make(20, FontStyle.Bold, TextAnchor.MiddleCenter);
+        huge = make(34, FontStyle.Bold, TextAnchor.MiddleCenter);
+        tileTitle = make(24, FontStyle.Bold, TextAnchor.UpperLeft);
+        tileBody = make(15, FontStyle.Normal, TextAnchor.UpperLeft);
+        badge = make(18, FontStyle.Bold, TextAnchor.MiddleCenter);
     }
 
     void RebuildButtons()
@@ -87,9 +162,8 @@ public class GazeHud : MonoBehaviour
                 GameController.SelectionMode mode = MenuModes[i];
                 buttons.Add(new GazeButton
                 {
-                    rect = rects[i],
-                    title = (i + 1) + "   " + GameController.ModeName(mode),
-                    body = ModeDescription(mode),
+                    rect = rects[i], number = (i + 1).ToString(),
+                    title = GameController.ModeName(mode), body = ModeDescription(mode),
                     action = () => game.StartMode(mode)
                 });
             }
@@ -138,7 +212,7 @@ public class GazeHud : MonoBehaviour
     int ButtonUnderGaze(Vector2 position)
     {
         int best = -1;
-        float bestDistance = ButtonTolerancePixels;
+        float bestDistance = ButtonTolerance * Ui;
         for (int i = 0; i < buttons.Count; i++)
         {
             Rect r = buttons[i].rect;
@@ -161,17 +235,8 @@ public class GazeHud : MonoBehaviour
     void OnGUI()
     {
         if (game == null || input == null) return;
-        if (titleStyle == null)
-        {
-            titleStyle = new GUIStyle(GUI.skin.label) { fontSize = 20, fontStyle = FontStyle.Bold };
-            labelStyle = new GUIStyle(GUI.skin.label) { fontSize = 14, wordWrap = true };
-            bigStyle = new GUIStyle(GUI.skin.label) { fontSize = 30, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
-            centerStyle = new GUIStyle(GUI.skin.label) { fontSize = 18, alignment = TextAnchor.MiddleCenter, wordWrap = true };
-            buttonTitleStyle = new GUIStyle(GUI.skin.label) { fontSize = 24, fontStyle = FontStyle.Bold, alignment = TextAnchor.UpperCenter };
-            buttonBodyStyle = new GUIStyle(GUI.skin.label) { fontSize = 16, alignment = TextAnchor.UpperCenter, wordWrap = true };
-        }
+        if (roundStyle == null || !Mathf.Approximately(stylesForScale, Ui)) BuildStyles();
         Color previous = GUI.color;
-        DrawPanel();
         if (buttons.Count == 0) RebuildButtons();
 
         if (game.InMenu) DrawMenu();
@@ -181,112 +246,180 @@ public class GazeHud : MonoBehaviour
             DrawBlinkIndicator();
         }
         if (game.GameOver) DrawGameOver();
+        DrawCard();
+        DrawControls();
+        DrawFooter();
         DrawGazeMarker();
-        if (Time.unscaledTime - game.LastConfirmTime < 1.2f && !game.InMenu)
-        {
-            GUI.color = game.LastConfirmText.EndsWith("fired") ? new Color(0.3f, 1f, 0.55f) : new Color(1f, 0.72f, 0.2f);
-            GUI.Label(new Rect(Screen.width / 2f - 250, Screen.height - 70, 500, 40), game.LastConfirmText, centerStyle);
-        }
-        if (Time.unscaledTime - game.LastShotTime < 0.15f && !game.InMenu)
-        {
-            GUI.color = Color.white;
-            GUI.Label(new Rect(Screen.width / 2f - 35, 28, 100, 30), "HIT", titleStyle);
-        }
+        DrawFeedback();
         GUI.color = previous;
     }
 
-    void DrawPanel()
+    // ---------- status card ----------
+
+    void DrawCard()
     {
-        Rect panel = Panel;
-        GUI.color = new Color(0.03f, 0.06f, 0.13f, 0.94f);
-        GUI.DrawTexture(panel, Texture2D.whiteTexture);
-        GUI.color = Color.white;
-        string mode = game.InMenu ? "choose a mode" : GameController.ModeName(game.Mode);
-        GUI.Label(new Rect(24, 17, panel.width - 20, 28),
-            "GAZE LAB   Score " + game.points + "   Hull " + Mathf.Max(0, 100 - game.damage * 25) + "%   Mode: " + mode, titleStyle);
-        GUI.color = input.IsSimulation ? new Color(1f, 0.72f, 0.2f) : Color.cyan;
-        string status = input.StatusText;
-        if (!input.IsSimulation && input.DisplayScale > 1.01f)
-            status += "  |  display scaling " + Mathf.RoundToInt(input.DisplayScale * 100) + " % " +
-                      (input.compensateDisplayScaling ? "compensated" : "NOT compensated");
-        GUI.Label(new Rect(24, 47, panel.width - 20, 23), status, labelStyle);
-        GUI.color = Color.white;
-        GUI.Label(new Rect(24, 70, panel.width - 20, 22), game.InMenu
-            ? "Look at a mode for 1 s to start. Rocks +20 / Satellites -100."
-            : ModeInstruction(game) + " Rocks +20 / Satellites -100.", labelStyle);
+        Rect card = R(CardDesign.x, CardDesign.y, CardDesign.width, CardDesign.height);
+        Box(card, Panel);
+        Outline(card, Edge);
+        float x = CardDesign.x + 18, y = CardDesign.y;
+
+        Text(R(x, y + 14, 120, 16), "GAZE LAB", caption, Accent);
+        string modeText = game.InMenu ? "CHOOSE MODE" : GameController.ModeName(game.Mode).ToUpperInvariant();
+        float chipWidth = Mathf.Min(220f, 26f + modeText.Length * 7.6f);
+        Rect chipRect = R(CardDesign.xMax - 16 - chipWidth, y + 10, chipWidth, 22);
+        Box(chipRect, new Color(Accent.r, Accent.g, Accent.b, 0.16f));
+        Text(chipRect, modeText, chip, Accent);
+
+        Text(R(x, y + 40, 150, 14), "SCORE", caption, Muted);
+        Text(R(x, y + 52, 170, 42), game.points.ToString(), value, Color.white);
+
+        int hull = Mathf.Clamp(4 - game.damage, 0, 4);
+        Text(R(x + 186, y + 40, 150, 14), "HULL  " + hull * 25 + " %", caption, Muted);
+        Color hullColor = hull >= 3 ? Good : hull == 2 ? Warn : Bad;
+        for (int i = 0; i < 4; i++)
+            Box(R(x + 186 + i * 44, y + 62, 39, 12), i < hull ? hullColor : Track);
+
+        Color statusColor = input.IsSimulation ? Warn : input.HasValidGaze ? Good : Bad;
+        GUI.color = statusColor;
+        GUI.DrawTexture(R(x, y + 103, 10, 10), dot);
+        Text(R(x + 18, y + 98, CardDesign.width - 52, 20), input.StatusText, body, Color.white);
+
+        string hint = game.InMenu ? "Look at a mode for 1 s to start.  Rocks +20  ·  Satellites −100" : ModeInstruction(game);
         if (!game.InMenu && game.Mode == GameController.SelectionMode.Nod && input.HeadStatus.Length > 0)
-        {
-            GUI.color = input.HeadPoseAvailable ? Color.cyan : new Color(1f, 0.72f, 0.2f);
-            GUI.Label(new Rect(24, 92, panel.width - 20, 22), input.HeadStatus, labelStyle);
-            GUI.color = Color.white;
-        }
-        float y = 118;
-        if (GUI.Button(new Rect(24, y, 150, 22), "Tobii eye tracker")) input.ChooseSource(false);
-        if (GUI.Button(new Rect(184, y, 150, 22), "Mouse simulation")) input.ChooseSource(true);
-        if (!input.IsSimulation && input.DisplayScale > 1.01f &&
-            GUI.Button(new Rect(344, y, 170, 22), input.compensateDisplayScaling ? "Scaling fix: ON" : "Scaling fix: OFF"))
-            input.compensateDisplayScaling = !input.compensateDisplayScaling;
-        GUI.Label(new Rect(24, 144, panel.width - 20, 22), "Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED", labelStyle);
+            hint += "  ·  " + input.HeadStatus;
+        Text(R(x, y + 122, CardDesign.width - 36, 20), hint, bodyMuted, Muted);
     }
+
+    void DrawControls()
+    {
+        float x = ControlsDesign.x, y = ControlsDesign.y, h = ControlsDesign.height;
+        Rect group = R(x, y, 230, h);
+        Box(group, Panel);
+        if (Segment(R(x + 3, y + 3, 112, h - 6), "Eye tracker", !input.IsSimulation)) input.ChooseSource(false);
+        if (Segment(R(x + 115, y + 3, 112, h - 6), "Mouse", input.IsSimulation)) input.ChooseSource(true);
+
+        if (!input.IsSimulation && input.DisplayScale > 1.01f)
+        {
+            string label = "Scaling " + Mathf.RoundToInt(input.DisplayScale * 100) + " %: fix " + (input.compensateDisplayScaling ? "on" : "off");
+            Rect pill = R(x + 238, y, 146, h);
+            Box(pill, Panel);
+            Outline(pill, input.compensateDisplayScaling ? new Color(Good.r, Good.g, Good.b, 0.5f) : new Color(Warn.r, Warn.g, Warn.b, 0.6f));
+            Text(pill, label, chip, input.compensateDisplayScaling ? Good : Warn);
+            if (GUI.Button(pill, GUIContent.none, GUIStyle.none)) input.compensateDisplayScaling = !input.compensateDisplayScaling;
+        }
+    }
+
+    bool Segment(Rect rect, string label, bool selected)
+    {
+        if (selected) Box(rect, Accent);
+        Text(rect, label, segment, selected ? new Color(0.03f, 0.06f, 0.12f) : Muted);
+        return GUI.Button(rect, GUIContent.none, GUIStyle.none);
+    }
+
+    void DrawFooter()
+    {
+        Text(R(16, VirtualHeight - 28, 700, 20), "Team: Jan Biernacki · Kürsat · Paul · Malte   |   Matriculation numbers: TO BE PROVIDED",
+            small, new Color(Muted.r, Muted.g, Muted.b, 0.85f));
+    }
+
+    // ---------- menus ----------
 
     void DrawMenu()
     {
-        GUI.color = new Color(0f, 0f, 0f, 0.55f);
-        GUI.DrawTexture(new Rect(0, Panel.yMax + 8, Screen.width, Screen.height), Texture2D.whiteTexture);
-        GUI.color = Color.white;
-        float titleY = buttons.Count > 0 ? buttons[0].rect.y - 60 : Screen.height / 2f - 200;
-        GUI.Label(new Rect(0, titleY, Screen.width, 44), "Choose a shooting mode - look at it for 1 second", bigStyle);
-        for (int i = 0; i < buttons.Count; i++) DrawGazeButton(i);
+        GUI.color = new Color(0f, 0f, 0f, 0.5f);
+        GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+        if (buttons.Count == 0) return;
+        Rect first = buttons[0].rect;
+        float top = first.y / Ui;
+        Text(R(0, top - 92, VirtualWidth, 44), "Choose a shooting mode", huge, Color.white);
+        Text(R(0, top - 48, VirtualWidth, 24), "Look at a mode for one second", center, Muted);
+        for (int i = 0; i < buttons.Count; i++) DrawTile(i);
     }
 
     void DrawGameOver()
     {
-        GUI.color = new Color(0.03f, 0.06f, 0.13f, 0.96f);
-        GUI.DrawTexture(new Rect(Screen.width / 2f - 360, Screen.height / 2f - 70, 720, 210), Texture2D.whiteTexture);
-        GUI.color = Color.white;
-        GUI.Label(new Rect(Screen.width / 2f - 360, Screen.height / 2f - 60, 720, 60),
-            "GAME OVER  |  Score " + game.points, bigStyle);
-        for (int i = 0; i < buttons.Count; i++) DrawGazeButton(i);
+        float vw = VirtualWidth, vh = VirtualHeight;
+        Rect card = R(vw * 0.5f - 330, vh * 0.5f - 120, 660, 268);
+        Box(card, PanelSolid);
+        Outline(card, Edge);
+        Text(R(vw * 0.5f - 330, vh * 0.5f - 104, 660, 40), "GAME OVER", huge, Color.white);
+        Text(R(vw * 0.5f - 330, vh * 0.5f - 58, 660, 30), "Score " + game.points, center, Accent);
+        for (int i = 0; i < buttons.Count; i++) DrawTile(i);
     }
 
-    void DrawGazeButton(int index)
+    void DrawTile(int index)
     {
         GazeButton button = buttons[index];
         bool hovered = index == hoveredButton;
-        GUI.color = hovered ? new Color(0.1f, 0.3f, 0.45f, 0.97f) : new Color(0.06f, 0.11f, 0.22f, 0.95f);
-        GUI.DrawTexture(button.rect, Texture2D.whiteTexture);
-        GUI.color = hovered ? new Color(0.3f, 1f, 0.55f) : new Color(0.3f, 0.9f, 1f, 0.8f);
-        DrawFrame(button.rect, hovered ? 3 : 2);
-        GUI.color = Color.white;
-        GUI.Label(new Rect(button.rect.x + 10, button.rect.y + 12, button.rect.width - 20, 34), button.title, buttonTitleStyle);
-        GUI.Label(new Rect(button.rect.x + 16, button.rect.y + 48, button.rect.width - 32, button.rect.height - 60), button.body, buttonBodyStyle);
+        Rect r = button.rect;
+        float s = Ui;
+        Box(r, hovered ? new Color(0.07f, 0.2f, 0.3f, 0.97f) : PanelSolid);
+        Outline(r, hovered ? Good : Edge);
+
+        float textLeft = 20 * s;
+        if (!string.IsNullOrEmpty(button.number))
+        {
+            Rect badgeRect = new Rect(r.x + 18 * s, r.y + 18 * s, 36 * s, 36 * s);
+            GUI.color = hovered ? Good : new Color(Accent.r, Accent.g, Accent.b, 0.2f);
+            GUI.DrawTexture(badgeRect, dot);
+            Text(badgeRect, button.number, badge, hovered ? new Color(0.03f, 0.06f, 0.12f) : Accent);
+            textLeft = 66 * s;
+        }
+        Text(new Rect(r.x + textLeft, r.y + 20 * s, r.width - textLeft - 18 * s, 32 * s), button.title, tileTitle, Color.white);
+        Text(new Rect(r.x + textLeft, r.y + 56 * s, r.width - textLeft - 18 * s, r.height - 70 * s), button.body, tileBody, Muted);
+
+        // Dwell progress along the bottom edge.
+        Rect bar = new Rect(r.x + 14 * s, r.yMax - 14 * s, r.width - 28 * s, 5 * s);
         if (hovered)
         {
-            GUI.color = new Color(0.3f, 1f, 0.55f);
-            GUI.DrawTexture(new Rect(button.rect.x, button.rect.yMax - 8,
-                button.rect.width * Mathf.Clamp01(buttonDwell / MenuDwellSeconds), 8), Texture2D.whiteTexture);
+            GUI.color = Track;
+            GUI.DrawTexture(bar, Texture2D.whiteTexture);
+            GUI.color = Good;
+            GUI.DrawTexture(new Rect(bar.x, bar.y, bar.width * Mathf.Clamp01(buttonDwell / MenuDwellSeconds), bar.height), Texture2D.whiteTexture);
         }
+    }
+
+    // ---------- in-game feedback ----------
+
+    void DrawFeedback()
+    {
+        if (game.InMenu) return;
+        if (Time.unscaledTime - game.LastConfirmTime < 1.2f && game.LastConfirmText.Length > 0)
+        {
+            bool fired = game.LastConfirmText.EndsWith("fired");
+            float w = 460f;
+            Rect pill = R(VirtualWidth * 0.5f - w * 0.5f, VirtualHeight - 84, w, 36);
+            Box(pill, Panel);
+            Outline(pill, fired ? Good : Warn);
+            Text(pill, game.LastConfirmText, segment, fired ? Good : Warn);
+        }
+        if (Time.unscaledTime - game.LastShotTime < 0.2f)
+            Text(R(VirtualWidth * 0.5f - 100, 24, 200, 44), "HIT", huge, Good);
     }
 
     void DrawGazeMarker()
     {
+        float s = Ui;
         for (int i = 1; i < trace.Count; i++)
         {
-            GUI.color = new Color(0.3f, 0.9f, 1f, 0.45f * Mathf.Clamp01(1 - (Time.unscaledTime - trace[i].time) / 0.65f));
-            DrawLine(ToGui(trace[i - 1].point), ToGui(trace[i].point), 2);
+            GUI.color = new Color(Accent.r, Accent.g, Accent.b, 0.45f * Mathf.Clamp01(1 - (Time.unscaledTime - trace[i].time) / 0.65f));
+            DrawLine(ToGui(trace[i - 1].point), ToGui(trace[i].point), 2 * s);
         }
         if (!input.HasValidGaze) return;
         Vector2 point = ToGui(input.ScreenPoint);
         GUI.color = Color.white;
-        GUI.DrawTexture(new Rect(point.x - 4, point.y - 4, 8, 8), dot);
+        GUI.DrawTexture(new Rect(point.x - 4 * s, point.y - 4 * s, 8 * s, 8 * s), dot);
         if (game.InMenu || game.GameOver) return;
-        GUI.color = game.IsLineOfFireClear ? new Color(0.3f, 1f, 0.55f) : Color.cyan;
-        if (game.Mode == GameController.SelectionMode.Dwell) DrawRing(point, 17, game.DwellProgress);
+        GUI.color = game.IsLineOfFireClear ? Good : Accent;
+        if (game.Mode == GameController.SelectionMode.Dwell) DrawRing(point, 17 * s, game.DwellProgress, 3 * s);
         else if (game.DwellTarget != null)
         {
             // Locked target: full ring and the action that fires it.
-            DrawRing(point, 17, 1f);
-            GUI.Label(new Rect(point.x + 22, point.y - 12, 160, 24), LockHint(game.Mode), labelStyle);
+            DrawRing(point, 17 * s, 1f, 3 * s);
+            string hint = LockHint(game.Mode);
+            Rect pill = new Rect(point.x + 26 * s, point.y - 12 * s, (24 + hint.Length * 8) * s, 24 * s);
+            Box(pill, Panel);
+            Text(pill, hint, chip, Good);
         }
     }
 
@@ -295,8 +428,10 @@ public class GazeHud : MonoBehaviour
         if (game.Mode != GameController.SelectionMode.Blink || !input.EyesClosedCandidate) return;
         float t = input.EyesClosedSeconds;
         bool inWindow = t >= game.BlinkMinSeconds && t <= game.BlinkMaxSeconds;
-        GUI.color = inWindow ? new Color(0.3f, 1f, 0.55f) : new Color(1f, 0.72f, 0.2f);
-        GUI.Label(new Rect(Screen.width / 2f - 200, 70, 400, 40), "Eyes closed " + t.ToString("0.00") + " s", bigStyle);
+        Rect pill = R(VirtualWidth * 0.5f - 160, 80, 320, 52);
+        Box(pill, Panel);
+        Outline(pill, inWindow ? Good : Warn);
+        Text(pill, "Eyes closed " + Num(t, "0.00") + " s", center, inWindow ? Good : Warn);
     }
 
     void DrawTarget()
@@ -305,19 +440,22 @@ public class GazeHud : MonoBehaviour
         Bounds bounds = game.DwellTarget.bounds;
         Vector2 lo = Camera.main.WorldToScreenPoint(bounds.min);
         Vector2 hi = Camera.main.WorldToScreenPoint(bounds.max);
-        Rect rect = Rect.MinMaxRect(lo.x - 5, Screen.height - hi.y - 5, hi.x + 5, Screen.height - lo.y + 5);
-        GUI.color = game.IsLineOfFireClear ? new Color(0.3f, 1f, 0.55f) : new Color(1f, 0.65f, 0.2f);
-        DrawFrame(rect, 2);
+        float pad = 6 * Ui;
+        Rect rect = Rect.MinMaxRect(lo.x - pad, Screen.height - hi.y - pad, hi.x + pad, Screen.height - lo.y + pad);
+        GUI.color = game.IsLineOfFireClear ? Good : Warn;
+        DrawCorners(rect, 2.5f * Ui, Mathf.Min(rect.width, rect.height) * 0.25f);
     }
+
+    // ---------- texts ----------
 
     static string ModeDescription(GameController.SelectionMode mode)
     {
         switch (mode)
         {
             case GameController.SelectionMode.Blink:
-                return "Look at a target, then close your eyes a little longer than a normal blink.\n(Simulation: hold B)";
+                return "Look at a target, then close both eyes a little longer than a normal blink.\nSimulation: hold B";
             case GameController.SelectionMode.Nod:
-                return "Look at a target, then nod your head once.\n(Simulation: press N)";
+                return "Look at a target, then nod your head once.\nSimulation: press N";
             case GameController.SelectionMode.Button:
                 return "Look at a target, then press Space or the left mouse button.";
             default:
@@ -330,12 +468,14 @@ public class GazeHud : MonoBehaviour
         switch (game.Mode)
         {
             case GameController.SelectionMode.Blink:
-                return "Aim, then close eyes " + game.BlinkMinSeconds.ToString("0.0#") + "-" + game.BlinkMaxSeconds.ToString("0.0#") + " s to fire.";
-            case GameController.SelectionMode.Nod: return "Aim, then nod once to fire.";
-            case GameController.SelectionMode.Button: return "Aim, then press Space / left click to fire.";
-            default: return "Dwell 0.6 s on a target to fire.";
+                return "Aim, then close both eyes " + Num(game.BlinkMinSeconds, "0.0#") + "–" + Num(game.BlinkMaxSeconds, "0.0#") + " s";
+            case GameController.SelectionMode.Nod: return "Aim, then nod once";
+            case GameController.SelectionMode.Button: return "Aim, then press Space / left click";
+            default: return "Keep looking at a target for 0.6 s";
         }
     }
+
+    static string Num(float v, string format) { return v.ToString(format, System.Globalization.CultureInfo.InvariantCulture); }
 
     static string LockHint(GameController.SelectionMode mode)
     {
@@ -347,14 +487,43 @@ public class GazeHud : MonoBehaviour
         }
     }
 
-    static Vector2 ToGui(Vector2 point) { return new Vector2(point.x, Screen.height - point.y); }
-    static void DrawFrame(Rect rect, float width)
+    // ---------- drawing helpers ----------
+
+    void Box(Rect rect, Color color)
     {
-        DrawLine(new Vector2(rect.xMin, rect.yMin), new Vector2(rect.xMax, rect.yMin), width);
-        DrawLine(new Vector2(rect.xMax, rect.yMin), new Vector2(rect.xMax, rect.yMax), width);
-        DrawLine(new Vector2(rect.xMax, rect.yMax), new Vector2(rect.xMin, rect.yMax), width);
-        DrawLine(new Vector2(rect.xMin, rect.yMax), new Vector2(rect.xMin, rect.yMin), width);
+        if (Event.current.type != EventType.Repaint) return;
+        GUI.color = color;
+        roundStyle.Draw(rect, false, false, false, false);
     }
+
+    void Outline(Rect rect, Color color)
+    {
+        if (Event.current.type != EventType.Repaint) return;
+        GUI.color = color;
+        ringStyle.Draw(rect, false, false, false, false);
+    }
+
+    static void Text(Rect rect, string text, GUIStyle style, Color color)
+    {
+        GUI.color = Color.white;
+        style.normal.textColor = color;
+        GUI.Label(rect, text, style);
+    }
+
+    static Vector2 ToGui(Vector2 point) { return new Vector2(point.x, Screen.height - point.y); }
+
+    static void DrawCorners(Rect r, float width, float length)
+    {
+        DrawLine(new Vector2(r.xMin, r.yMin), new Vector2(r.xMin + length, r.yMin), width);
+        DrawLine(new Vector2(r.xMin, r.yMin), new Vector2(r.xMin, r.yMin + length), width);
+        DrawLine(new Vector2(r.xMax, r.yMin), new Vector2(r.xMax - length, r.yMin), width);
+        DrawLine(new Vector2(r.xMax, r.yMin), new Vector2(r.xMax, r.yMin + length), width);
+        DrawLine(new Vector2(r.xMin, r.yMax), new Vector2(r.xMin + length, r.yMax), width);
+        DrawLine(new Vector2(r.xMin, r.yMax), new Vector2(r.xMin, r.yMax - length), width);
+        DrawLine(new Vector2(r.xMax, r.yMax), new Vector2(r.xMax - length, r.yMax), width);
+        DrawLine(new Vector2(r.xMax, r.yMax), new Vector2(r.xMax, r.yMax - length), width);
+    }
+
     static void DrawLine(Vector2 start, Vector2 end, float width)
     {
         Matrix4x4 previous = GUI.matrix;
@@ -363,7 +532,8 @@ public class GazeHud : MonoBehaviour
         GUI.DrawTexture(new Rect(start.x, start.y - width / 2, delta.magnitude, width), Texture2D.whiteTexture);
         GUI.matrix = previous;
     }
-    static void DrawRing(Vector2 center, float radius, float progress)
+
+    static void DrawRing(Vector2 center, float radius, float progress, float width)
     {
         int segments = Mathf.CeilToInt(Mathf.Clamp01(progress) * 48);
         for (int i = 0; i < segments; i++)
@@ -371,8 +541,13 @@ public class GazeHud : MonoBehaviour
             float a = i * Mathf.PI * 2 / 48 - Mathf.PI / 2;
             float b = (i + 1) * Mathf.PI * 2 / 48 - Mathf.PI / 2;
             DrawLine(center + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * radius,
-                     center + new Vector2(Mathf.Cos(b), Mathf.Sin(b)) * radius, 3);
+                     center + new Vector2(Mathf.Cos(b), Mathf.Sin(b)) * radius, width);
         }
     }
-    void OnDestroy() { if (dot != null) Destroy(dot); }
+
+    void OnDestroy()
+    {
+        if (dot != null) Destroy(dot);
+        if (round != null) Destroy(round);
+    }
 }

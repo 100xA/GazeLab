@@ -158,15 +158,15 @@ public class GameController : MonoBehaviour
                 if (closed < BlinkMinSeconds)
                 {
                     // Natural blinks are ignored: this is the Midas-touch protection of this mode.
-                    Feedback("Blink " + closed.ToString("0.00") + " s - too short, ignored");
+                    Feedback("Blink " + closed.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) + " s - too short, ignored");
                     return false;
                 }
                 if (closed > BlinkMaxSeconds)
                 {
-                    Feedback("Eyes closed " + closed.ToString("0.0") + " s - too long, ignored");
+                    Feedback("Eyes closed " + closed.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " s - too long, ignored");
                     return false;
                 }
-                description = "Blink " + closed.ToString("0.00") + " s";
+                description = "Blink " + closed.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) + " s";
                 return true;
             case SelectionMode.Nod:
                 if (!input.NodDetected) return false;

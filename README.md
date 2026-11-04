@@ -10,9 +10,9 @@ This project adapts the Moodle Space Shooter starter for the Eye Gaze Interactio
 1. Open this folder in **Unity 2019.4** (tested with 2019.4.41f2; the course uses 2019.4.13f1).
 2. Open `Assets/Scenes/Main.unity`.
 3. Select a 16:9 Game view, preferably **1920 x 1080**.
-4. Press Play. The first start uses **mouse simulation**. Click **Tobii eye tracker** in the top-left panel once. After that, every start uses the tracker, so the mode menu can be operated with the eyes alone.
+4. Press Play. The game starts with the **Tobii eye tracker**, so the mode menu can be operated with the eyes alone. Switch to **Mouse** in the top-left panel for development without a tracker; the next start uses the tracker again.
 
-The Tobii native library crashes Unity if the installed Tobii runtime does not fit the SDK. The lab slides warn about Tobii Core Software 2.16.8. If Unity crashes at any point while Tobii is in use, the next start falls back to mouse simulation and says so in the panel. In that case, install **Tobii Experience** (see below).
+The Tobii native library crashes Unity if the installed Tobii runtime does not fit the SDK. The lab slides warn about Tobii Core Software 2.16.8. If Unity crashes at any point while Tobii is in use, the next start falls back to mouse simulation once and says so in the panel. In that case, install **Tobii Experience** (see below).
 
 ## Shooting modes (Midas touch)
 
@@ -58,8 +58,12 @@ All game scripts are in `Assets/Scripts` (namespace `GazeLab`):
 | `Input` | `GazeInput` (reads the active `IGazeSource` each frame), `TobiiGazeSource`, `MouseGazeSource`, `GazeFilter` (smoothing), `DisplayScaling`, `BlinkDetector`, `HeadNodDetector`, `TobiiCrashGuard` |
 | `UI` | `GazeHud` (IMGUI entry point), `StatusCard`, `MenuView` with `GazeButtons` (gaze-only buttons), `GameOverlay` (crosshair, target brackets, feedback), `HudTheme` (colours, fonts, drawing helpers) |
 | `Targets` | `MovingTarget` base class with `RockController` and `SatelliteController`, `PlayerController` (ship) |
+| `Visuals` | `ToonModels` (builds, caches and attaches the meshes), `ToonMeshBuilder` (low-poly parts); `Models/` one class per model (`ShipModel`, `RockModel`, `SatelliteModel`, `EffectModels`); `Effects/` `ShotEffects` (muzzle flash, explosions) with `EffectPiece`; drawn with `Resources/Shaders/GazeLabToon.shader` |
+| `Audio` | `SoundSynth` (sound effects synthesised in code), `GameSounds` (plays them for game events) |
 
-The HUD (`HudTheme`) uses the colours of the game sprites and two fonts under the SIL Open Font License, Lilita One and Varela Round. They are in `Assets/Resources/Fonts`, together with their licence files.
+The ship, rocks and satellites are low-poly 3D models generated in code (no model files) and drawn with a cartoon shader: three light bands, a rim light and a dark outline. Rocks tumble and satellites roll while they drift. A shot is animated: muzzle flash and recoil, a bolt that races to the target and pulls its tail after it, and an explosion of fire puffs and tumbling fragments (`ShotEffects`).
+
+Sound effects are synthesised in code as well (`Audio/SoundSynth`, played by `GameSounds`): laser, rock explosion, satellite crash with a penalty jingle, blocked shot, ship hit, round start, game over and a quiet blip when the gaze settles on a target (audible gaze feedback). The volume is **Sound Volume** in the GameController settings. Newer targets spawn closer to the camera, so they are drawn and selected in front. The HUD (`HudTheme`) uses the same colours as the models and two fonts under the SIL Open Font License, Lilita One and Varela Round. They are in `Assets/Resources/Fonts`, together with their licence files.
 
 To add a shooting mode, create a class derived from `ShotMode` and add it to `ShotModes.All`. The menu, HUD texts and checks pick it up from there.
 
@@ -72,6 +76,8 @@ Unity.exe -projectPath <project-folder> -executeMethod GazeLabValidation.Run -lo
 ```
 
 Unity opens, runs the checks and closes again (exit code 0 = passed). On our PC, `-batchmode` failed with a licence error, so it is left out. The checks do not replace a test with the real tracker.
+
+`-executeMethod GazeLabPlay.Run` opens Unity directly in Play mode with the Main scene (`Assets/Editor/GazeLabPlay.cs`). That script also gives the Game view keyboard focus whenever Play mode starts, so Space, B and N work without clicking into the Game view first.
 
 ## Submission (three separate files)
 

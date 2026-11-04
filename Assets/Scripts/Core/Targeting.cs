@@ -106,12 +106,10 @@ namespace GazeLab
         Collider2D FrontmostTargetAt(Vector2 world)
         {
             Collider2D best = null;
-            SpriteRenderer bestRenderer = null;
             foreach (Collider2D candidate in Physics2D.OverlapPointAll(world))
             {
                 if (!IsVisibleTarget(candidate)) continue;
-                SpriteRenderer renderer = candidate.GetComponent<SpriteRenderer>();
-                if (best == null || IsInFront(renderer, bestRenderer)) { best = candidate; bestRenderer = renderer; }
+                if (best == null || IsInFront(candidate, best)) best = candidate;
             }
             return best;
         }
@@ -119,19 +117,16 @@ namespace GazeLab
         static bool IsVisibleTarget(Collider2D candidate)
         {
             if (!IsTarget(candidate)) return false;
-            SpriteRenderer renderer = candidate.GetComponent<SpriteRenderer>();
-            return renderer != null && renderer.enabled && renderer.sprite != null;
+            Renderer model = candidate.GetComponentInChildren<Renderer>();
+            return model != null && model.enabled;
         }
 
-        // Explicit sorting makes visible overlaps agree with gaze acquisition.
-        bool IsInFront(SpriteRenderer candidate, SpriteRenderer previous)
+        // The models are drawn by depth (see GazeLab/Toon), so the target nearer to the camera is the
+        // one seen in front; selecting it keeps visible overlaps and gaze acquisition in agreement.
+        bool IsInFront(Collider2D candidate, Collider2D previous)
         {
-            int layer = SortingLayer.GetLayerValueFromID(candidate.sortingLayerID);
-            int previousLayer = SortingLayer.GetLayerValueFromID(previous.sortingLayerID);
-            if (layer != previousLayer) return layer > previousLayer;
-            if (candidate.sortingOrder != previous.sortingOrder) return candidate.sortingOrder > previous.sortingOrder;
-            return Vector3.Distance(cam.transform.position, candidate.transform.position)
-                 < Vector3.Distance(cam.transform.position, previous.transform.position);
+            float forward = Vector3.Dot(candidate.transform.position - previous.transform.position, cam.transform.forward);
+            return forward < 0f;
         }
     }
 }

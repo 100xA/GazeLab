@@ -19,8 +19,8 @@ namespace GazeLab
         public bool IsSimulation { get { return false; } }
 
         // The crash guard is armed before the native library is touched for the first time.
-        public void Activate() { TobiiCrashGuard.BeginSession(Time.unscaledTime); }
-        public void Deactivate() { TobiiCrashGuard.EndSession(Time.unscaledTime); }
+        public void Activate() { TobiiCrashGuard.BeginSession(); }
+        public void Deactivate() { TobiiCrashGuard.EndSession(); }
 
 #if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
         public GazeSample ReadGaze(float now)

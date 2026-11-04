@@ -7,7 +7,7 @@ namespace GazeLab
     /// <summary>Gaze-operated overlays: mode selection at start, Restart / Change mode after game over.</summary>
     public sealed class MenuView
     {
-        // One colour per mode tile, taken from the game sprites.
+        // One colour per mode tile, taken from the 3D models.
         static readonly Color[] TileColors = { HudTheme.CockpitTeal, HudTheme.ShipYellow, HudTheme.RockOrange, HudTheme.SatelliteBlue };
 
         readonly GameController game;

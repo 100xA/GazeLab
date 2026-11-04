@@ -6,11 +6,15 @@ namespace GazeLab
     /// <summary>Creates rocks and satellites at the right edge and removes them between rounds.</summary>
     public sealed class TargetSpawner
     {
+        // Newer targets spawn closer to the camera, so they are drawn (and selected) in front.
+        // The z layers repeat; targets live far shorter than one cycle of spawns.
+        const int DepthLayers = 20;
+        const float DepthStep = 0.1f;
+
         readonly GameController game;
         readonly GameObject rockPrefab, satellitePrefab;
         readonly GameSettings settings;
-        Sprite[] satelliteSprites;
-        int sortingOrder;
+        int spawnCount;
 
         public TargetSpawner(GameController game, GameObject rockPrefab, GameObject satellitePrefab, GameSettings settings)
         {
@@ -26,14 +30,9 @@ namespace GazeLab
             else SpawnSatellite(Random.Range(-settings.satelliteSpawnHalfHeight, settings.satelliteSpawnHalfHeight));
         }
 
-        public void SpawnRock(float y) { Spawn(rockPrefab, y, null); }
+        public void SpawnRock(float y) { Spawn(rockPrefab, y); }
 
-        public void SpawnSatellite(float y)
-        {
-            if (satelliteSprites == null) satelliteSprites = Resources.LoadAll<Sprite>("Sprites");
-            Sprite sprite = satelliteSprites.Length > 0 ? satelliteSprites[Random.Range(0, satelliteSprites.Length)] : null;
-            Spawn(satellitePrefab, y, sprite);
-        }
+        public void SpawnSatellite(float y) { Spawn(satellitePrefab, y); }
 
         public void ClearAll()
         {
@@ -42,14 +41,15 @@ namespace GazeLab
                 target.gameObject.SetActive(false);
                 Object.Destroy(target.gameObject);
             }
-            sortingOrder = 0;
+            spawnCount = 0;
         }
 
-        void Spawn(GameObject prefab, float y, Sprite sprite)
+        void Spawn(GameObject prefab, float y)
         {
             if (prefab == null) return;
             GameObject spawned = Object.Instantiate(prefab);
-            spawned.transform.position = new Vector3(settings.spawnX, y, 0f);
+            float z = -(++spawnCount % DepthLayers) * DepthStep;
+            spawned.transform.position = new Vector3(settings.spawnX, y, z);
 
             // Targets are moved by script; physics must not let them coast while the game is paused.
             Rigidbody2D body = spawned.GetComponent<Rigidbody2D>();
@@ -59,12 +59,6 @@ namespace GazeLab
                 body.velocity = Vector2.zero;
                 body.angularVelocity = 0f;
                 body.gravityScale = 0f;
-            }
-            SpriteRenderer renderer = spawned.GetComponent<SpriteRenderer>();
-            if (renderer != null)
-            {
-                if (sprite != null) renderer.sprite = sprite;
-                renderer.sortingOrder = ++sortingOrder; // newer targets are drawn (and selected) in front
             }
             MovingTarget target = spawned.GetComponent<MovingTarget>();
             if (target != null) target.Init(game);

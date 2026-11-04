@@ -4,14 +4,14 @@ using UnityEngine;
 namespace GazeLab
 {
     /// <summary>
-    /// Look of the HUD, matched to the flat cartoon sprites: colours taken from the ship (red, yellow,
+    /// Look of the HUD, matched to the cartoon 3D models (<see cref="ToonModels"/>): colours of the ship (red, yellow,
     /// teal), the rock (orange) and the satellite (blue); chunky rounded "plates" with a darker lip;
     /// Lilita One for headings and Varela Round for text (both SIL Open Font License, in Resources/Fonts).
     /// Layout values are design units for a 1080p screen, scaled with the Game view height.
     /// </summary>
     public sealed class HudTheme
     {
-        // Palette from the game sprites
+        // Palette shared with the 3D models
         public static readonly Color ShipRed = new Color(0.93f, 0.25f, 0.22f);
         public static readonly Color ShipYellow = new Color(0.98f, 0.84f, 0.29f);
         public static readonly Color CockpitTeal = new Color(0.36f, 0.66f, 0.73f);
@@ -118,7 +118,7 @@ namespace GazeLab
             style.Draw(rect, false, false, false, false);
         }
 
-        /// <summary>Chunky rounded plate with a darker lip below, like the game's flat sprites.</summary>
+        /// <summary>Chunky rounded plate with a darker lip below, in the cartoon style of the models.</summary>
         public void Plate(Rect rect, Color color, float lip = 5f)
         {
             float l = lip * Scale;

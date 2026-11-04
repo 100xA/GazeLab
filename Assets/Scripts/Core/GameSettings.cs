@@ -32,7 +32,10 @@ namespace GazeLab
         public int maxShipHits = 4;
         public int rockPoints = 20;
         public int satellitePoints = -100;
-        public float beamVisibleSeconds = 0.15f;
+        [Tooltip("Duration of the laser shot animation.")]
+        public float beamVisibleSeconds = 0.3f;
+        [Tooltip("Volume of the sound effects (0 = muted).")]
+        [Range(0f, 1f)] public float soundVolume = 0.8f;
 
         [Header("Spawning")]
         public float spawnX = 13f;

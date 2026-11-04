@@ -6,8 +6,8 @@ namespace GazeLab
 {
     /// <summary>
     /// Reads the active gaze source once per frame and derives the confirmation signals used by the
-    /// shooting modes: blink duration and head nods. The Tobii tracker is only loaded after it was
-    /// selected once (see <see cref="TobiiCrashGuard"/>); otherwise the game starts with the mouse.
+    /// shooting modes: blink duration and head nods. The game starts with the Tobii tracker; only
+    /// after Tobii crashed Unity does it start once with the mouse (see <see cref="TobiiCrashGuard"/>).
     /// </summary>
     [DisallowMultipleComponent]
     public class GazeInput : MonoBehaviour
@@ -59,11 +59,7 @@ namespace GazeLab
 
         public void UseTobii() { SetSource(tobii); }
 
-        public void UseMouse()
-        {
-            SetSource(mouse);
-            TobiiCrashGuard.ForgetTobii();
-        }
+        public void UseMouse() { SetSource(mouse); }
 
         /// <summary>Switches the gaze source (also used by the automated checks to inject a fake source).</summary>
         public void SetSource(IGazeSource next)

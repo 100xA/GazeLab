@@ -24,6 +24,7 @@ namespace GazeLab
         TargetSpawner spawner;
         PlayerController ship;
         GazeHud hud;
+        GameSounds sounds;
         float spawnTimer;
 
         public GameState State { get; private set; }
@@ -49,6 +50,8 @@ namespace GazeLab
         {
             Gaze = GetOrAdd<GazeInput>();
             hud = GetOrAdd<GazeHud>();
+            sounds = GetOrAdd<GameSounds>();
+            sounds.Init(settings);
             Cannon = new LaserCannon(laserCannon.transform, laserBeam != null ? laserBeam.GetComponent<LineRenderer>() : null, spaceship.transform);
             Targeting = new Targeting(Camera.main, Cannon, settings);
             spawner = new TargetSpawner(this, rockPrefab, satellitePrefab, settings);
@@ -93,7 +96,11 @@ namespace GazeLab
             else if (decision.IsIgnored) SetFeedback(decision.Message, false, now);
 
             bool gazeUsable = Gaze.HasValidGaze && !hud.BlocksGaze(Gaze.ScreenPoint);
+            Collider2D aimedBefore = Targeting.AimTarget;
             Targeting.UpdateAim(gazeUsable, Gaze.ScreenPoint, now, deltaTime);
+            // Audible feedback when the gaze settles on a target
+            if (Targeting.AimTarget != null && Targeting.AimTarget != aimedBefore) sounds.TargetAimed(Targeting.AimTarget, now);
+            else sounds.TargetStillAimed(Targeting.AimTarget, now);
         }
 
         void FireAtLockedTarget(ShotDecision decision, float now)
@@ -111,10 +118,15 @@ namespace GazeLab
                 Cannon.Fire(hitPoint, now);
                 MovingTarget hitTarget = target.GetComponent<MovingTarget>();
                 Score += hitTarget.Points(settings);
-                hitTarget.Remove();
+                sounds.Shot(hitTarget.Kind);
+                hitTarget.Explode();
                 SetFeedback(decision.Message + " - fired", true, now);
             }
-            else SetFeedback(decision.Message + " - line of fire blocked", false, now);
+            else
+            {
+                sounds.ShotBlocked();
+                SetFeedback(decision.Message + " - line of fire blocked", false, now);
+            }
             Targeting.Clear();
         }
 
@@ -124,8 +136,10 @@ namespace GazeLab
         public void OnShipCollision(MovingTarget target)
         {
             if (!IsRunning || target == null) return;
-            if (target.DamagesShip) RegisterShipHit();
-            target.Remove();
+            if (!target.DamagesShip) { target.Remove(); return; }
+            sounds.ShipHit();
+            target.Explode();
+            RegisterShipHit();
         }
 
         public void RegisterShipHit()
@@ -155,11 +169,13 @@ namespace GazeLab
             ship.ResetShip();
             spawner.SpawnRock(settings.firstRockY);
             spawner.SpawnSatellite(settings.firstSatelliteY);
+            sounds.RoundStart();
         }
 
         /// <summary>Shows the gaze-operated mode menu; no targets exist and nothing can be fired.</summary>
         public void ShowMenu()
         {
+            if (State == GameState.GameOver) sounds.BackToMenu();
             spawner.ClearAll();
             State = GameState.Menu;
             ShipHits = 0;
@@ -176,6 +192,7 @@ namespace GazeLab
             Targeting.Clear();
             Cannon.Hide();
             ship.Crash();
+            sounds.GameOver();
         }
 
         T GetOrAdd<T>() where T : Component

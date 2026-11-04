@@ -110,6 +110,7 @@ public class GazeHud : MonoBehaviour
         previousSimulation = input.IsSimulation;
         trace.RemoveAll(p => Time.unscaledTime - p.time > 0.65f);
         RebuildButtons();
+        if (calibration == null) calibration = GetComponent<GazeCalibration>();
         if (calibration != null && calibration.IsRunning)
         {
             trace.Clear();
@@ -206,6 +207,8 @@ public class GazeHud : MonoBehaviour
 
     void DrawPanel()
     {
+        // GazeCalibration is added after this HUD, so it may not exist yet in Awake.
+        if (calibration == null) calibration = GetComponent<GazeCalibration>();
         Rect panel = Panel;
         GUI.color = new Color(0.03f, 0.06f, 0.13f, 0.94f);
         GUI.DrawTexture(panel, Texture2D.whiteTexture);

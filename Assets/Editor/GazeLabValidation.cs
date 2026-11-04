@@ -177,6 +177,28 @@ public static class GazeLabValidation
 
         CheckSelectionModes(game, input, camera);
         CheckNodDetector();
+        CheckCalibrationFit();
+    }
+
+    static void CheckCalibrationFit()
+    {
+        // Simulated tracker error: 8 % too small, shifted right/down, slightly sheared.
+        var distortion = new GazeCalibration.Affine { ax = 0.92f, bx = 0.03f, cx = 0.06f, ay = -0.02f, by = 0.95f, cy = -0.05f };
+        Vector2[] targets = GazeCalibration.Targets;
+        var measured = new Vector2[targets.Length];
+        for (int i = 0; i < targets.Length; i++) measured[i] = distortion.Apply(targets[i]);
+        GazeCalibration.Affine fit;
+        bool ok = GazeCalibration.Fit(measured, targets, out fit);
+        float worst = 0f;
+        for (int i = 0; i < targets.Length; i++) worst = Mathf.Max(worst, (fit.Apply(measured[i]) - targets[i]).magnitude);
+        Vector2 probe = new Vector2(0.3f, 0.7f);
+        float probeError = (fit.Apply(distortion.Apply(probe)) - probe).magnitude;
+        Check(ok && worst < 1e-4f && probeError < 1e-4f && GazeCalibration.IsPlausible(fit),
+            "gaze calibration: affine fit removes offset, scale and shear");
+
+        for (int i = 0; i < targets.Length; i++) measured[i] = new Vector2(1f - targets[i].x, targets[i].y);
+        Check(GazeCalibration.Fit(measured, targets, out fit) && !GazeCalibration.IsPlausible(fit),
+            "gaze calibration: mirrored gaze (wrong setup) is rejected");
     }
 
     static void CheckSelectionModes(GameController game, GazeInput input, Camera camera)

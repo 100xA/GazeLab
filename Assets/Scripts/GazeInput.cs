@@ -28,6 +28,15 @@ public class GazeInput : MonoBehaviour
     public bool IsSimulation { get { return simulateMouse; } }
     public bool IsOverControls { get { return GazeHud.ControlsContain(ScreenPoint); } }
 
+    // Raw tracker gaze (before in-game correction and smoothing), used by GazeCalibration.
+    public bool HasRawGaze { get; private set; }
+    public Vector2 RawViewportPoint { get; private set; }
+    /// <summary>While true the stored correction is not applied (calibration in progress).</summary>
+    public bool SuspendCorrection { get; set; }
+    public bool IsCorrected { get; private set; }
+    GazeCalibration.Affine correction = GazeCalibration.Affine.Identity;
+    const string PrefCorrection = "GazeLab.GazeCorrection";
+
     // Blink signal: the tracker is working but currently sees no gaze (eyes closed).
     public bool EyesClosedCandidate { get; private set; }
     public float EyesClosedSeconds { get; private set; }
@@ -70,7 +79,39 @@ public class GazeInput : MonoBehaviour
         }
         else if (PlayerPrefs.GetInt(PrefUseTobii, 0) == 1) simulateMouse = false;
         lastSimulation = simulateMouse;
+        LoadCorrection();
         if (GetComponent<GazeHud>() == null) gameObject.AddComponent<GazeHud>();
+        if (GetComponent<GazeCalibration>() == null) gameObject.AddComponent<GazeCalibration>();
+    }
+
+    /// <summary>Stores and applies the affine correction found by the in-game calibration.</summary>
+    public void SetCorrection(GazeCalibration.Affine affine)
+    {
+        correction = affine;
+        IsCorrected = true;
+        PlayerPrefs.SetString(PrefCorrection, JsonUtility.ToJson(affine));
+        PlayerPrefs.Save();
+        hasSmoothedPoint = false;
+    }
+
+    public void ClearCorrection()
+    {
+        correction = GazeCalibration.Affine.Identity;
+        IsCorrected = false;
+        PlayerPrefs.DeleteKey(PrefCorrection);
+        PlayerPrefs.Save();
+    }
+
+    void LoadCorrection()
+    {
+        string json = PlayerPrefs.GetString(PrefCorrection, "");
+        if (json.Length == 0) return;
+        try
+        {
+            var stored = JsonUtility.FromJson<GazeCalibration.Affine>(json);
+            if (GazeCalibration.IsPlausible(stored)) { correction = stored; IsCorrected = true; }
+        }
+        catch (System.ArgumentException) { /* ignore a damaged entry */ }
     }
 
     /// <summary>Called by the HUD buttons: switches the source and remembers the choice.</summary>
@@ -126,6 +167,7 @@ public class GazeInput : MonoBehaviour
     bool ReadGaze()
     {
         HasValidGaze = false;
+        HasRawGaze = false;
         if (!Application.isFocused)
         {
             StatusText = "Game window inactive - paused";
@@ -160,7 +202,12 @@ public class GazeInput : MonoBehaviour
             StatusText = "Gaze lost or stale (eyes closed?) - paused";
             return true; // tracker connected, but no current gaze: candidate for a blink
         }
-        ScreenPoint = Smooth(sample.Screen); // Already Unity bottom-left coordinates. Do not invert Y.
+        // sample.Screen is already in Unity bottom-left coordinates. Do not invert Y.
+        Vector2 size = new Vector2(Screen.width, Screen.height);
+        RawViewportPoint = new Vector2(sample.Screen.x / Mathf.Max(1, size.x), sample.Screen.y / Mathf.Max(1, size.y));
+        HasRawGaze = !float.IsNaN(RawViewportPoint.x) && !float.IsNaN(RawViewportPoint.y);
+        Vector2 viewport = IsCorrected && !SuspendCorrection ? correction.Apply(RawViewportPoint) : RawViewportPoint;
+        ScreenPoint = Smooth(Vector2.Scale(viewport, size));
         HasValidGaze = InBounds(ScreenPoint);
         StatusText = HasValidGaze ? "Tobii gaze active" : "Gaze outside game - paused";
         return false;

@@ -24,6 +24,7 @@ public class GazeHud : MonoBehaviour
     readonly List<GazeButton> buttons = new List<GazeButton>();
     GameController game;
     GazeInput input;
+    GazeCalibration calibration;
     Texture2D dot;
     GUIStyle titleStyle, labelStyle, bigStyle, buttonTitleStyle, buttonBodyStyle, centerStyle;
     int hoveredButton = -1;
@@ -70,6 +71,7 @@ public class GazeHud : MonoBehaviour
     {
         game = GetComponent<GameController>();
         input = GetComponent<GazeInput>();
+        calibration = GetComponent<GazeCalibration>();
         dot = new Texture2D(32, 32, TextureFormat.RGBA32, false);
         for (int y = 0; y < 32; y++) for (int x = 0; x < 32; x++)
             dot.SetPixel(x, y, Vector2.Distance(new Vector2(x, y), new Vector2(15.5f, 15.5f)) <= 15 ? Color.white : Color.clear);
@@ -108,6 +110,13 @@ public class GazeHud : MonoBehaviour
         previousSimulation = input.IsSimulation;
         trace.RemoveAll(p => Time.unscaledTime - p.time > 0.65f);
         RebuildButtons();
+        if (calibration != null && calibration.IsRunning)
+        {
+            trace.Clear();
+            hoveredButton = -1;
+            buttonDwell = 0;
+            return;
+        }
         if (hoveredButton >= buttons.Count) { hoveredButton = -1; buttonDwell = 0; }
         if (!input.HasValidGaze)
         {
@@ -205,12 +214,20 @@ public class GazeHud : MonoBehaviour
         GUI.Label(new Rect(24, 17, panel.width - 20, 28),
             "GAZE LAB   Score " + game.points + "   Hull " + Mathf.Max(0, 100 - game.damage * 25) + "%   Mode: " + mode, titleStyle);
         GUI.color = input.IsSimulation ? new Color(1f, 0.72f, 0.2f) : Color.cyan;
-        GUI.Label(new Rect(24, 47, panel.width - 20, 23), input.StatusText, labelStyle);
+        string status = input.StatusText;
+        if (!input.IsSimulation) status += input.IsCorrected ? "  |  gaze correction on" : "  |  not calibrated in game";
+        GUI.Label(new Rect(24, 47, panel.width - 20, 23), status, labelStyle);
         GUI.color = Color.white;
         GUI.Label(new Rect(24, 70, panel.width - 20, 22), game.InMenu
             ? "Look at a mode for 1 s to start. Rocks +20 / Satellites -100."
             : ModeInstruction(game) + " Rocks +20 / Satellites -100.", labelStyle);
-        if (!game.InMenu && game.Mode == GameController.SelectionMode.Nod && input.HeadStatus.Length > 0)
+        if (calibration != null && calibration.Message.Length > 0 && Time.unscaledTime - calibration.MessageTime < 10f)
+        {
+            GUI.color = calibration.Message.StartsWith("Calibration saved") ? new Color(0.3f, 1f, 0.55f) : new Color(1f, 0.72f, 0.2f);
+            GUI.Label(new Rect(24, 92, panel.width - 20, 22), calibration.Message, labelStyle);
+            GUI.color = Color.white;
+        }
+        else if (!game.InMenu && game.Mode == GameController.SelectionMode.Nod && input.HeadStatus.Length > 0)
         {
             GUI.color = input.HeadPoseAvailable ? Color.cyan : new Color(1f, 0.72f, 0.2f);
             GUI.Label(new Rect(24, 92, panel.width - 20, 22), input.HeadStatus, labelStyle);
@@ -219,6 +236,11 @@ public class GazeHud : MonoBehaviour
         float y = 118;
         if (GUI.Button(new Rect(24, y, 150, 22), "Tobii eye tracker")) input.ChooseSource(false);
         if (GUI.Button(new Rect(184, y, 150, 22), "Mouse simulation")) input.ChooseSource(true);
+        if (!input.IsSimulation && calibration != null && !calibration.IsRunning)
+        {
+            if (GUI.Button(new Rect(344, y, 130, 22), "Calibrate gaze")) calibration.Begin();
+            if (input.IsCorrected && GUI.Button(new Rect(484, y, 120, 22), "Reset correction")) input.ClearCorrection();
+        }
         GUI.Label(new Rect(24, 144, panel.width - 20, 22), "Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED", labelStyle);
     }
 

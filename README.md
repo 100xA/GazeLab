@@ -32,7 +32,7 @@ Mode 4 is a comparison baseline. The exercise does not allow a button press for 
 - **Nod:** a nod is a pitch movement of at least 9° away from a slowly adapting neutral head pose that returns within 0.9 s. Slow posture changes and head shakes are ignored. The panel shows the current head pitch.
 - **Lock feedback (modes 2–4):** a green frame on the target, a full ring and a hint (BLINK / NOD / SPACE) next to the gaze marker. After every confirmation, the bottom of the screen says whether it fired, was blocked, or was ignored.
 
-**Tracker tolerance:** small gaze jitter is smoothed, while large jumps (saccades) are followed immediately. A gaze point up to about 65 px (0.6 world units) next to a target still selects it. Dwell and menu progress survive jitter or blinks of up to 0.15 s (targets) or 0.3 s (menu). Menu buttons accept gaze up to 40 px outside their border. All values can be changed in the Inspector (GameController, GazeInput).
+**Tracker tolerance:** small gaze jitter is smoothed, while large jumps (saccades) are followed immediately. A gaze point up to about 65 px (0.6 world units) next to a target still selects it. Dwell and menu progress survive jitter or blinks of up to 0.15 s (targets) or 0.3 s (menu). Menu buttons accept gaze up to 40 px outside their border. All values can be changed in the Inspector: **Settings** on the GameController and on GazeInput.
 
 All modes show the gaze marker with a short trail (the gaze tracing marker required by the exercise). Losing valid gaze pauses targets and spawning. In blink mode this happens only after the blink window has passed.
 
@@ -43,19 +43,33 @@ All modes show the gaze marker with a short trail (the gaze tracing marker requi
 3. The Tobii Unity SDK 4.0.5 is included under `Assets/Tobii`. Accept the SDK license if Unity asks.
 4. Press Play, select **Tobii eye tracker**, and check that the marker lines up at several positions. Recalibrate if the tracker or monitor moves.
 
-**Windows display scaling:** with scaling above 100 % (e.g. 150 % on a 4K monitor), the Tobii runtime reports gaze positions pulled towards the centre of the Game view by the scaling factor. When we looked at the top-left corner at 150 %, the marker landed about one third of the way to the centre. `GazeInput` stretches the gaze back around the window centre by the scaling factor. In the Editor this is `EditorGUIUtility.pixelsPerPoint`, in a build it is the window DPI / 96. The panel shows the detected scaling, and **Scaling fix: ON/OFF** toggles the correction for comparison.
+**Windows display scaling:** with scaling above 100 % (e.g. 150 % on a 4K monitor), the Tobii runtime reports gaze positions pulled towards the centre of the Game view by the scaling factor. When we looked at the top-left corner at 150 %, the marker landed about one third of the way to the centre. `DisplayScaling` stretches the gaze back around the window centre by the scaling factor. In the Editor this is `EditorGUIUtility.pixelsPerPoint`, in a build it is the window DPI / 96. The panel shows the detected scaling, and the **Scaling … fix on/off** pill toggles the correction for comparison.
 
 The Tobii adapter uses `TobiiAPI.GetGazePoint().Screen` (bottom-left origin) and `TobiiAPI.GetHeadPose()` for nods. Samples older than 100 ms count as lost gaze.
 
+## Code structure
+
+All game scripts are in `Assets/Scripts` (namespace `GazeLab`):
+
+| Folder | Contents |
+|---|---|
+| `Core` | `GameController` (round state, score, wiring), `GameSettings` (all tuning values), `Targeting` (target under the gaze, tolerance, line of fire, lock), `LaserCannon`, `TargetSpawner` |
+| `Modes` | One class per shooting mode (`DwellMode`, `BlinkMode`, `NodMode`, `ButtonMode`) derived from `ShotMode`; `ShotModes.All` lists them in menu order |
+| `Input` | `GazeInput` (reads the active `IGazeSource` each frame), `TobiiGazeSource`, `MouseGazeSource`, `GazeFilter` (smoothing), `DisplayScaling`, `BlinkDetector`, `HeadNodDetector`, `TobiiCrashGuard` |
+| `UI` | `GazeHud` (IMGUI entry point), `StatusCard`, `MenuView` with `GazeButtons` (gaze-only buttons), `GameOverlay` (marker, trail, feedback), `HudTheme` (colours, fonts, drawing helpers) |
+| `Targets` | `MovingTarget` base class with `RockController` and `SatelliteController`, `PlayerController` (ship) |
+
+To add a shooting mode, create a class derived from `ShotMode` and add it to `ShotModes.All`. The menu, HUD texts and checks pick it up from there.
+
 ## Automated checks
 
-`Assets/Editor/GazeLabValidation.cs` drives the real game code with injected gaze in Play Mode. It checks dwell, blink and nod confirmation, the menu, line-of-fire blocking, scoring, game over and restart, as well as the head-nod detector with synthetic head movements:
+`Assets/Editor/GazeLabValidation.cs` drives the real game code in Play Mode with a fake gaze source and explicit time (no reflection). It checks dwell, blink and nod confirmation, the gaze tolerance, line-of-fire blocking, scoring, game over, restart and the menu, as well as the head-nod detector and the display-scaling correction. Close Unity first, then run:
 
 ```
-Unity.exe -batchmode -nographics -projectPath <project-folder> -executeMethod GazeLabValidation.Run -logFile <log-file>
+Unity.exe -projectPath <project-folder> -executeMethod GazeLabValidation.Run -logFile <log-file>
 ```
 
-Do not add `-quit`; the runner exits after its checks. These checks do not replace a test with the real tracker.
+Unity opens, runs the checks and closes again (exit code 0 = passed). On our PC, `-batchmode` failed with a licence error, so it is left out. The checks do not replace a test with the real tracker.
 
 ## Submission (three separate files)
 

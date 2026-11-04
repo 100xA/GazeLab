@@ -21,11 +21,14 @@ namespace GazeLab
         }
 
         public const float DwellSeconds = 1f;
+        /// <summary>New buttons ignore the gaze briefly, so a menu appearing under the eyes is not triggered by accident.</summary>
+        const float ArmDelaySeconds = 0.6f;
         const float ToleranceDesignUnits = 40f;
         const float LossToleranceSeconds = 0.3f;
 
         readonly List<Button> buttons = new List<Button>();
         float lastHitTime = float.NegativeInfinity;
+        float armedAt = float.NaN;
 
         public IList<Button> Items { get { return buttons; } }
         public int Hovered { get; private set; } = -1;
@@ -35,7 +38,8 @@ namespace GazeLab
         {
             buttons.Clear();
             buttons.AddRange(items);
-            if (Hovered >= buttons.Count) Release();
+            Release();
+            armedAt = float.NaN; // armed relative to the next update
         }
 
         public bool Contains(Vector2 guiPoint)
@@ -47,6 +51,8 @@ namespace GazeLab
         /// <summary>Advances the dwell of the button under the gaze; activates it when complete.</summary>
         public void Update(bool gazeValid, Vector2 guiPoint, float now, float deltaTime)
         {
+            if (float.IsNaN(armedAt)) armedAt = now + ArmDelaySeconds;
+            if (now < armedAt) return;
             int hit = gazeValid ? ButtonAt(guiPoint) : -1;
             if (hit < 0)
             {

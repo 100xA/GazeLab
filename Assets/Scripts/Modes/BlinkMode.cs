@@ -1,4 +1,6 @@
 // Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+using UnityEngine;
+
 namespace GazeLab
 {
     /// <summary>
@@ -32,10 +34,14 @@ namespace GazeLab
             BlinkDetector blink = context.Gaze.Blink;
             if (!blink.Ended) return ShotDecision.None;
             float closed = blink.LastClosedSeconds;
+            // Clearly natural blinks are ignored silently, otherwise the feedback would flash constantly.
+            if (closed < context.Settings.blinkMinSeconds * 0.5f) return ShotDecision.None;
             if (closed < context.Settings.blinkMinSeconds)
                 return ShotDecision.Ignore("Blink " + Format.Number(closed, "0.00") + " s - too short, ignored");
             if (closed > context.Settings.blinkMaxSeconds)
                 return ShotDecision.Ignore("Eyes closed " + Format.Number(closed, "0.0") + " s - too long, ignored");
+            if (blink.LastGazeShiftPixels > context.Settings.blinkMaxGazeShift * Screen.height)
+                return ShotDecision.Ignore("Gaze moved while the eyes were closed - ignored");
             // The lock must survive the closure itself.
             return ShotDecision.FireLocked("Blink " + Format.Number(closed, "0.00") + " s", context.Settings.lockGraceSeconds + closed);
         }

@@ -123,6 +123,23 @@ public static class GazeLabValidation
             CheckMenu();
             CheckNodDetector();
             CheckDisplayScaling();
+            CheckGazeButtons();
+        }
+
+        static void CheckGazeButtons()
+        {
+            var buttons = new GazeButtons();
+            int pressed = 0;
+            buttons.Set(new[] { new GazeButtons.Button { Rect = new Rect(0, 0, 100, 100), Action = () => pressed++ } });
+            var inside = new Vector2(50, 50);
+            float t = 0f;
+            for (int i = 0; i < 5; i++, t += 0.1f) buttons.Update(true, inside, t, 0.1f);
+            Check(buttons.Progress == 0f, "gaze buttons ignore the gaze right after appearing");
+            for (int i = 0; i < 20 && pressed == 0; i++, t += 0.1f) buttons.Update(true, inside, t, 0.1f);
+            Check(pressed == 1, "gaze buttons fire after the dwell time");
+            buttons.Update(true, new Vector2(500, 500), t, 0.1f);
+            for (int i = 0; i < 5; i++, t += 0.1f) buttons.Update(true, new Vector2(500, 500), t, 0.1f);
+            Check(buttons.Hovered == -1 && pressed == 1, "gaze far away from the buttons selects nothing");
         }
 
         void CheckDwell()
@@ -224,6 +241,14 @@ public static class GazeLabValidation
             Frames(1);
             Check(game.Score == 0 && game.LastFeedback.Text.Contains("too long"), "blink: a very long closure is ignored");
 
+            Frames(2);
+            CloseEyes(5);
+            Look(new Vector2(-4f, -3f)); // looked away and came back somewhere else
+            Frames(1);
+            Check(game.Score == 0 && rock.enabled && game.LastFeedback.Text.Contains("moved"),
+                "blink: eyes reopening elsewhere (looking away) do not fire");
+
+            Look(new Vector2(2f, 0f));
             Frames(2);
             CloseEyes(5);
             Look(new Vector2(2f, 0f));

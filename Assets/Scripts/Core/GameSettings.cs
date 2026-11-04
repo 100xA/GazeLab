@@ -15,6 +15,9 @@ namespace GazeLab
         public float blinkMinSeconds = 0.15f;
         [Tooltip("Blink mode: longest eye closure that counts; longer closures pause the game.")]
         public float blinkMaxSeconds = 1.5f;
+        [Tooltip("Blink mode: the eyes must reopen this close to where they closed (fraction of the " +
+                 "screen height); looking away and back is not a blink.")]
+        public float blinkMaxGazeShift = 0.15f;
         [Tooltip("How long a target stays locked after the gaze left it (blink, nod, button).")]
         public float lockGraceSeconds = 0.35f;
 

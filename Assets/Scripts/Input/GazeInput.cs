@@ -51,6 +51,8 @@ namespace GazeLab
             SetSource(startWithTobii ? (IGazeSource)tobii : mouse);
         }
 
+        void OnEnable() { if (Source != null && Source == tobii) tobii.Activate(); }
+
         void OnDisable() { if (tobii != null) tobii.Deactivate(); }
 
         void Update() { Tick(Time.unscaledTime, Time.unscaledDeltaTime, Application.isFocused); }

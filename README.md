@@ -16,7 +16,7 @@ The Tobii native library crashes Unity if the installed Tobii runtime does not f
 
 ## Shooting modes (Midas touch)
 
-The game starts with a mode menu. Look at a mode for **1 second** to start it. No click is needed. After game over, look at **Restart** (same mode) or **Change mode** for 1 second.
+The game starts with a mode menu. Look at a mode for **1 second** to start it. No click is needed. After game over, look at **Restart** (same mode) or **Change mode** for 1 second. New menu buttons ignore the gaze for 0.6 s after they appear, so a menu that pops up where the player is looking does not trigger by accident.
 
 | # | Mode | How to fire | Simulation |
 |---|------|-------------|------------|
@@ -28,7 +28,7 @@ The game starts with a mode menu. Look at a mode for **1 second** to start it. N
 Mode 4 is a comparison baseline. The exercise does not allow a button press for shooting confirmation, so modes 1–3 are the gaze-only solutions.
 
 - **Dwell:** a progress ring around the gaze marker fills up. Switching target or losing gaze resets it.
-- **Blink:** blinks shorter than 0.15 s are natural blinks and are ignored. The Tobii sample only counts as missing after 100 ms, so the real closure is about 0.1 s longer than the measured one. Closures longer than 1.5 s are ignored too and pause the game. The target the player aimed at just before closing the eyes stays locked during the blink. A large "Eyes closed x.xx s" readout turns green inside the valid window.
+- **Blink:** blinks shorter than 0.15 s are natural blinks and are ignored. The Tobii sample only counts as missing after 100 ms, so the real closure is about 0.1 s longer than the measured one. Closures longer than 1.5 s are ignored too and pause the game. The target the player aimed at just before closing the eyes stays locked during the blink. A large "Eyes closed x.xx s" readout turns green inside the valid window. The eyes must also reopen close to where they closed (within 15 % of the screen height). Looking away from the screen and back is therefore not counted as a blink.
 - **Nod:** a nod is a pitch movement of at least 9° away from a slowly adapting neutral head pose that returns within 0.9 s. Slow posture changes and head shakes are ignored. The panel shows the current head pitch.
 - **Lock feedback (modes 2–4):** a green frame on the target, a full ring and a hint (BLINK / NOD / SPACE) next to the gaze marker. After every confirmation, the bottom of the screen says whether it fired, was blocked, or was ignored.
 

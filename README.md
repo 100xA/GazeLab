@@ -43,6 +43,8 @@ All modes show the gaze marker with a short trail (the gaze tracing marker requi
 3. The Tobii Unity SDK 4.0.5 is included under `Assets/Tobii`. Accept the SDK license if Unity asks.
 4. Press Play, select **Tobii eye tracker**, and check that the marker lines up at several positions. Recalibrate if the tracker or monitor moves.
 
+**Windows display scaling:** with scaling above 100 % (e.g. 150 % on a 4K monitor), the Tobii runtime reports gaze positions pulled towards the centre of the Game view by the scaling factor. When we looked at the top-left corner at 150 %, the marker landed about one third of the way to the centre. `GazeInput` stretches the gaze back around the window centre by the scaling factor. In the Editor this is `EditorGUIUtility.pixelsPerPoint`, in a build it is the window DPI / 96. The panel shows the detected scaling, and **Scaling fix: ON/OFF** toggles the correction for comparison.
+
 The Tobii adapter uses `TobiiAPI.GetGazePoint().Screen` (bottom-left origin) and `TobiiAPI.GetHeadPose()` for nods. Samples older than 100 ms count as lost gaze.
 
 ## Automated checks

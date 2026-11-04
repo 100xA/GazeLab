@@ -177,28 +177,26 @@ public static class GazeLabValidation
 
         CheckSelectionModes(game, input, camera);
         CheckNodDetector();
-        CheckCalibrationFit();
+        CheckDisplayScalingCompensation();
     }
 
-    static void CheckCalibrationFit()
+    static void CheckDisplayScalingCompensation()
     {
-        // Simulated tracker error: 8 % too small, shifted right/down, slightly sheared.
-        var distortion = new GazeCalibration.Affine { ax = 0.92f, bx = 0.03f, cx = 0.06f, ay = -0.02f, by = 0.95f, cy = -0.05f };
-        Vector2[] targets = GazeCalibration.Targets;
-        var measured = new Vector2[targets.Length];
-        for (int i = 0; i < targets.Length; i++) measured[i] = distortion.Apply(targets[i]);
-        GazeCalibration.Affine fit;
-        bool ok = GazeCalibration.Fit(measured, targets, out fit);
+        // Tobii at 150 %: true window position w is reported as 0.5 + (w - 0.5) / 1.5.
+        const float scale = 1.5f;
+        var bounds = new Rect(0f, 0.02f, 1f, 0.98f); // Game view toolbar takes the top 2 %
         float worst = 0f;
-        for (int i = 0; i < targets.Length; i++) worst = Mathf.Max(worst, (fit.Apply(measured[i]) - targets[i]).magnitude);
-        Vector2 probe = new Vector2(0.3f, 0.7f);
-        float probeError = (fit.Apply(distortion.Apply(probe)) - probe).magnitude;
-        Check(ok && worst < 1e-4f && probeError < 1e-4f && GazeCalibration.IsPlausible(fit),
-            "gaze calibration: affine fit removes offset, scale and shear");
-
-        for (int i = 0; i < targets.Length; i++) measured[i] = new Vector2(1f - targets[i].x, targets[i].y);
-        Check(GazeCalibration.Fit(measured, targets, out fit) && !GazeCalibration.IsPlausible(fit),
-            "gaze calibration: mirrored gaze (wrong setup) is rejected");
+        foreach (Vector2 truth in new[] { new Vector2(0.01f, 0.98f), new Vector2(0.5f, 0.5f), new Vector2(0.9f, 0.1f) })
+        {
+            float bottom = 1f - bounds.height - bounds.y;
+            Vector2 window = new Vector2(bounds.x + truth.x * bounds.width, bottom + truth.y * bounds.height);
+            Vector2 reportedWindow = new Vector2(0.5f + (window.x - 0.5f) / scale, 0.5f + (window.y - 0.5f) / scale);
+            Vector2 reported = new Vector2((reportedWindow.x - bounds.x) / bounds.width, (reportedWindow.y - bottom) / bounds.height);
+            worst = Mathf.Max(worst, (GazeInput.CompensateDisplayScaling(reported, bounds, scale) - truth).magnitude);
+        }
+        Check(worst < 1e-4f, "display scaling compensation restores the true gaze position");
+        Check(GazeInput.CompensateDisplayScaling(new Vector2(0.3f, 0.6f), bounds, 1f) == new Vector2(0.3f, 0.6f),
+            "display scaling compensation is neutral at 100 %");
     }
 
     static void CheckSelectionModes(GameController game, GazeInput input, Camera camera)

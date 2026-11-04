@@ -2,6 +2,7 @@
 using UnityEngine;
 #if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
 using Tobii.Gaming;
+using Tobii.Gaming.Internal;
 #endif
 
 /// <summary>
@@ -19,6 +20,11 @@ public class GazeInput : MonoBehaviour
     [Range(0f, 0.95f)] public float gazeSmoothing = 0.75f;
     [Tooltip("Gaze jumps larger than this (pixels) are treated as saccades and followed immediately.")]
     public float saccadeThresholdPixels = 90f;
+    [Tooltip("Undo the Tobii SDK mapping error under Windows display scaling (e.g. 150 %): " +
+             "without it the gaze is pulled towards the centre of the Game view by the scaling factor.")]
+    public bool compensateDisplayScaling = true;
+    /// <summary>Windows display scaling of the game window (1 = 100 %, 1.5 = 150 %).</summary>
+    public float DisplayScale { get; private set; }
     /// <summary>Set by the GameController while the head-nod shooting mode is active.</summary>
     public bool trackHeadPose;
     [Range(0.02f, 0.5f)] public float maximumSampleAge = 0.1f;
@@ -27,15 +33,6 @@ public class GazeInput : MonoBehaviour
     public string StatusText { get; private set; }
     public bool IsSimulation { get { return simulateMouse; } }
     public bool IsOverControls { get { return GazeHud.ControlsContain(ScreenPoint); } }
-
-    // Raw tracker gaze (before in-game correction and smoothing), used by GazeCalibration.
-    public bool HasRawGaze { get; private set; }
-    public Vector2 RawViewportPoint { get; private set; }
-    /// <summary>While true the stored correction is not applied (calibration in progress).</summary>
-    public bool SuspendCorrection { get; set; }
-    public bool IsCorrected { get; private set; }
-    GazeCalibration.Affine correction = GazeCalibration.Affine.Identity;
-    const string PrefCorrection = "GazeLab.GazeCorrection";
 
     // Blink signal: the tracker is working but currently sees no gaze (eyes closed).
     public bool EyesClosedCandidate { get; private set; }
@@ -79,39 +76,7 @@ public class GazeInput : MonoBehaviour
         }
         else if (PlayerPrefs.GetInt(PrefUseTobii, 0) == 1) simulateMouse = false;
         lastSimulation = simulateMouse;
-        LoadCorrection();
         if (GetComponent<GazeHud>() == null) gameObject.AddComponent<GazeHud>();
-        if (GetComponent<GazeCalibration>() == null) gameObject.AddComponent<GazeCalibration>();
-    }
-
-    /// <summary>Stores and applies the affine correction found by the in-game calibration.</summary>
-    public void SetCorrection(GazeCalibration.Affine affine)
-    {
-        correction = affine;
-        IsCorrected = true;
-        PlayerPrefs.SetString(PrefCorrection, JsonUtility.ToJson(affine));
-        PlayerPrefs.Save();
-        hasSmoothedPoint = false;
-    }
-
-    public void ClearCorrection()
-    {
-        correction = GazeCalibration.Affine.Identity;
-        IsCorrected = false;
-        PlayerPrefs.DeleteKey(PrefCorrection);
-        PlayerPrefs.Save();
-    }
-
-    void LoadCorrection()
-    {
-        string json = PlayerPrefs.GetString(PrefCorrection, "");
-        if (json.Length == 0) return;
-        try
-        {
-            var stored = JsonUtility.FromJson<GazeCalibration.Affine>(json);
-            if (GazeCalibration.IsPlausible(stored)) { correction = stored; IsCorrected = true; }
-        }
-        catch (System.ArgumentException) { /* ignore a damaged entry */ }
     }
 
     /// <summary>Called by the HUD buttons: switches the source and remembers the choice.</summary>
@@ -167,7 +132,6 @@ public class GazeInput : MonoBehaviour
     bool ReadGaze()
     {
         HasValidGaze = false;
-        HasRawGaze = false;
         if (!Application.isFocused)
         {
             StatusText = "Game window inactive - paused";
@@ -202,12 +166,15 @@ public class GazeInput : MonoBehaviour
             StatusText = "Gaze lost or stale (eyes closed?) - paused";
             return true; // tracker connected, but no current gaze: candidate for a blink
         }
-        // sample.Screen is already in Unity bottom-left coordinates. Do not invert Y.
-        Vector2 size = new Vector2(Screen.width, Screen.height);
-        RawViewportPoint = new Vector2(sample.Screen.x / Mathf.Max(1, size.x), sample.Screen.y / Mathf.Max(1, size.y));
-        HasRawGaze = !float.IsNaN(RawViewportPoint.x) && !float.IsNaN(RawViewportPoint.y);
-        Vector2 viewport = IsCorrected && !SuspendCorrection ? correction.Apply(RawViewportPoint) : RawViewportPoint;
-        ScreenPoint = Smooth(Vector2.Scale(viewport, size));
+        // sample.Viewport/Screen use Unity's bottom-left origin. Do not invert Y.
+        Vector2 viewport = sample.Viewport;
+        DisplayScale = CurrentDisplayScale();
+        if (compensateDisplayScaling && DisplayScale > 1.01f)
+        {
+            Rect bounds = TobiiHost.GetInstance().GameViewInfo.NormalizedClientAreaBounds;
+            viewport = CompensateDisplayScaling(viewport, bounds, DisplayScale);
+        }
+        ScreenPoint = Smooth(new Vector2(viewport.x * Screen.width, viewport.y * Screen.height));
         HasValidGaze = InBounds(ScreenPoint);
         StatusText = HasValidGaze ? "Tobii gaze active" : "Gaze outside game - paused";
         return false;
@@ -284,6 +251,43 @@ public class GazeInput : MonoBehaviour
         float keep = Mathf.Pow(Mathf.Clamp(gazeSmoothing, 0f, 0.95f), Time.unscaledDeltaTime * 60f);
         smoothedPoint = Vector2.Lerp(raw, smoothedPoint, keep);
         return smoothedPoint;
+    }
+
+    /// <summary>
+    /// With Windows display scaling the Tobii runtime reports gaze positions inside the tracked
+    /// window shrunk towards the window centre by the scaling factor (measured: looking at the
+    /// top-left corner at 150 % lands about one third of the way to the centre). This undoes that:
+    /// convert back to window-normalised coordinates, stretch around the window centre, and convert
+    /// to Game-view viewport coordinates again (same bounds as Tobii's GazePointDataProvider).
+    /// </summary>
+    public static Vector2 CompensateDisplayScaling(Vector2 viewport, Rect bounds, float scale)
+    {
+        if (scale <= 0f || bounds.width < 1e-4f || bounds.height < 1e-4f ||
+            float.IsNaN(bounds.x) || float.IsNaN(bounds.y)) return viewport;
+        float bottom = 1f - bounds.height - bounds.y; // window-normalised, bottom-up
+        float wx = bounds.x + viewport.x * bounds.width;
+        float wy = bottom + viewport.y * bounds.height;
+        wx = 0.5f + (wx - 0.5f) * scale;
+        wy = 0.5f + (wy - 0.5f) * scale;
+        return new Vector2((wx - bounds.x) / bounds.width, (wy - bottom) / bounds.height);
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")] static extern System.IntPtr GetActiveWindow();
+    [System.Runtime.InteropServices.DllImport("user32.dll")] static extern uint GetDpiForWindow(System.IntPtr hwnd);
+
+    static float CurrentDisplayScale()
+    {
+#if UNITY_EDITOR
+        return UnityEditor.EditorGUIUtility.pixelsPerPoint;
+#else
+        try
+        {
+            uint dpi = GetDpiForWindow(GetActiveWindow());
+            if (dpi > 0) return dpi / 96f;
+        }
+        catch (System.EntryPointNotFoundException) { }
+        return Screen.dpi > 0 ? Screen.dpi / 96f : 1f;
+#endif
     }
 
     void UpdateBlink(bool closedCandidate)

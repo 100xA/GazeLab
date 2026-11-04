@@ -34,7 +34,7 @@ Mode 4 is a comparison baseline. The exercise does not allow a button press for 
 
 **Tracker tolerance:** small gaze jitter is smoothed, while large jumps (saccades) are followed immediately. A gaze point up to about 65 px (0.6 world units) next to a target still selects it. Dwell and menu progress survive jitter or blinks of up to 0.15 s (targets) or 0.3 s (menu). Menu buttons accept gaze up to 40 px outside their border. All values can be changed in the Inspector: **Settings** on the GameController and on GazeInput.
 
-All modes show the gaze marker with a short trail (the gaze tracing marker required by the exercise). Losing valid gaze pauses targets and spawning. In blink mode this happens only after the blink window has passed.
+All modes show a crosshair that follows the gaze (the gaze tracing marker required by the exercise). Losing valid gaze pauses targets and spawning. In blink mode this happens only after the blink window has passed.
 
 ## Tobii 4C on Windows
 
@@ -56,7 +56,7 @@ All game scripts are in `Assets/Scripts` (namespace `GazeLab`):
 | `Core` | `GameController` (round state, score, wiring), `GameSettings` (all tuning values), `Targeting` (target under the gaze, tolerance, line of fire, lock), `LaserCannon`, `TargetSpawner` |
 | `Modes` | One class per shooting mode (`DwellMode`, `BlinkMode`, `NodMode`, `ButtonMode`) derived from `ShotMode`; `ShotModes.All` lists them in menu order |
 | `Input` | `GazeInput` (reads the active `IGazeSource` each frame), `TobiiGazeSource`, `MouseGazeSource`, `GazeFilter` (smoothing), `DisplayScaling`, `BlinkDetector`, `HeadNodDetector`, `TobiiCrashGuard` |
-| `UI` | `GazeHud` (IMGUI entry point), `StatusCard`, `MenuView` with `GazeButtons` (gaze-only buttons), `GameOverlay` (marker, trail, feedback), `HudTheme` (colours, fonts, drawing helpers) |
+| `UI` | `GazeHud` (IMGUI entry point), `StatusCard`, `MenuView` with `GazeButtons` (gaze-only buttons), `GameOverlay` (crosshair, target brackets, feedback), `HudTheme` (colours, fonts, drawing helpers) |
 | `Targets` | `MovingTarget` base class with `RockController` and `SatelliteController`, `PlayerController` (ship) |
 
 The HUD (`HudTheme`) uses the colours of the game sprites and two fonts under the SIL Open Font License, Lilita One and Varela Round. They are in `Assets/Resources/Fonts`, together with their licence files.

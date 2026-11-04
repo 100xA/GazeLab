@@ -19,7 +19,6 @@ namespace GazeLab
             game = owner;
             gaze = input;
             menu = new MenuView(owner);
-            gaze.SourceChanged += overlay.ClearTrail;
         }
 
         /// <summary>True if a screen point lies on a HUD control; gaze there neither aims nor fires.</summary>
@@ -36,7 +35,6 @@ namespace GazeLab
         {
             if (game == null) return;
             float now = Time.unscaledTime;
-            overlay.UpdateTrail(gaze, now);
             menu.Refresh();
             if (menu.IsVisible)
                 menu.Buttons.Update(gaze.HasValidGaze, HudTheme.ToGui(gaze.ScreenPoint), now, Time.unscaledDeltaTime);
@@ -53,14 +51,13 @@ namespace GazeLab
             overlay.DrawBehindHud(theme, game, gaze);
             menu.Draw(theme);
             statusCard.Draw(theme, game, gaze);
-            overlay.DrawGazeMarker(theme, game, gaze, now);
+            overlay.DrawGazeMarker(theme, game, gaze);
             overlay.DrawShotFeedback(theme, game, now);
             GUI.color = previous;
         }
 
         void OnDestroy()
         {
-            if (gaze != null) gaze.SourceChanged -= overlay.ClearTrail;
             theme.Release();
         }
     }

@@ -1,31 +1,14 @@
 // Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace GazeLab
 {
     /// <summary>
-    /// In-game feedback: gaze marker with a short trail, progress ring or lock hint, target corner
-    /// brackets (green = clear line of fire), eyes-closed timer, shot feedback and HIT.
+    /// In-game feedback: crosshair gaze marker with progress ring or lock hint, target corner
+    /// brackets, eyes-closed timer, shot feedback and HIT.
     /// </summary>
     public sealed class GameOverlay
     {
-        const float TrailSeconds = 0.65f;
-        const int MaxTrailPoints = 100;
-
-        struct TracePoint { public Vector2 Point; public float Time; }
-        readonly List<TracePoint> trail = new List<TracePoint>();
-
-        public void ClearTrail() { trail.Clear(); }
-
-        public void UpdateTrail(GazeInput gaze, float now)
-        {
-            trail.RemoveAll(p => now - p.Time > TrailSeconds);
-            if (!gaze.HasValidGaze) { trail.Clear(); return; }
-            trail.Add(new TracePoint { Point = gaze.ScreenPoint, Time = now });
-            if (trail.Count > MaxTrailPoints) trail.RemoveAt(0);
-        }
-
         /// <summary>Elements drawn below the HUD: target highlight and the eyes-closed timer.</summary>
         public void DrawBehindHud(HudTheme theme, GameController game, GazeInput gaze)
         {
@@ -34,39 +17,43 @@ namespace GazeLab
             DrawEyesClosed(theme, game, gaze);
         }
 
-        public void DrawGazeMarker(HudTheme theme, GameController game, GazeInput gaze, float now)
+        public void DrawGazeMarker(HudTheme theme, GameController game, GazeInput gaze)
         {
-            float s = HudTheme.Scale;
-            for (int i = 1; i < trail.Count; i++)
-            {
-                float fade = Mathf.Clamp01(1 - (now - trail[i].Time) / TrailSeconds);
-                Color c = HudTheme.ShipYellow;
-                GUI.color = new Color(c.r, c.g, c.b, 0.5f * fade);
-                HudTheme.Line(HudTheme.ToGui(trail[i - 1].Point), HudTheme.ToGui(trail[i].Point), 3 * s);
-            }
             if (!gaze.HasValidGaze) return;
+            float s = HudTheme.Scale;
             Vector2 point = HudTheme.ToGui(gaze.ScreenPoint);
-            theme.Circle(new Rect(point.x - 7 * s, point.y - 7 * s, 14 * s, 14 * s), HudTheme.Ink);
-            theme.Circle(new Rect(point.x - 4.5f * s, point.y - 4.5f * s, 9 * s, 9 * s), Color.white);
+            DrawCrosshair(theme, point, s);
             if (game.State != GameState.Playing) return;
 
-            bool locked = game.Targeting.AimTarget != null;
             string hint = game.Mode.LockHint;
             if (hint == null)
             {
                 // Dwell: dark track with the yellow progress on top.
                 GUI.color = new Color(0f, 0f, 0f, 0.35f);
-                HudTheme.Ring(point, 20 * s, 1f, 6 * s);
+                HudTheme.Ring(point, 33 * s, 1f, 6 * s);
                 GUI.color = HudTheme.ShipYellow;
-                HudTheme.Ring(point, 20 * s, game.ModeProgress, 6 * s);
+                HudTheme.Ring(point, 33 * s, game.ModeProgress, 6 * s);
                 return;
             }
-            if (!locked) return;
+            if (game.Targeting.AimTarget == null) return;
             GUI.color = HudTheme.ShipYellow;
-            HudTheme.Ring(point, 20 * s, 1f, 5 * s);
-            Rect pill = new Rect(point.x + 30 * s, point.y - 14 * s, (30 + hint.Length * 9) * s, 28 * s);
+            HudTheme.Ring(point, 33 * s, 1f, 5 * s);
+            Rect pill = new Rect(point.x + 44 * s, point.y - 14 * s, (30 + hint.Length * 9) * s, 28 * s);
             theme.Plate(pill, HudTheme.ShipYellow, 3f);
             HudTheme.Write(pill, hint, theme.Chip, HudTheme.Ink);
+        }
+
+        /// <summary>Four yellow arms with a dark outline and a gap in the middle, plus a centre dot.</summary>
+        static void DrawCrosshair(HudTheme theme, Vector2 center, float s)
+        {
+            const float Gap = 7f, Arm = 24f;
+            Vector2[] directions = { Vector2.up, Vector2.down, Vector2.left, Vector2.right };
+            GUI.color = HudTheme.Ink;
+            foreach (Vector2 d in directions) HudTheme.Line(center + d * (Gap - 1.5f) * s, center + d * (Arm + 1.5f) * s, 7 * s);
+            GUI.color = HudTheme.ShipYellow;
+            foreach (Vector2 d in directions) HudTheme.Line(center + d * Gap * s, center + d * Arm * s, 3.5f * s);
+            theme.Circle(new Rect(center.x - 3.5f * s, center.y - 3.5f * s, 7 * s, 7 * s), HudTheme.Ink);
+            theme.Circle(new Rect(center.x - 2f * s, center.y - 2f * s, 4 * s, 4 * s), HudTheme.ShipYellow);
         }
 
         public void DrawShotFeedback(HudTheme theme, GameController game, float now)

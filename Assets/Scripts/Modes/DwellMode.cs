@@ -7,7 +7,7 @@ namespace GazeLab
         public override string Name { get { return "Aim + Hold (Dwell)"; } }
         public override string Description(GameSettings settings)
         {
-            return "Look at a target and keep looking for " + Format.Number(settings.dwellSeconds, "0.0#") + " s. Eyes only.";
+            return "Look at a target and keep looking for " + Format.Number(settings.dwellSeconds, "0.0#") + " s. Eyes only."; // no line break before "s"
         }
 
         public override string Instruction(GameSettings settings)

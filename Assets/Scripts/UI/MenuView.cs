@@ -7,6 +7,9 @@ namespace GazeLab
     /// <summary>Gaze-operated overlays: mode selection at start, Restart / Change mode after game over.</summary>
     public sealed class MenuView
     {
+        // One colour per mode tile, taken from the game sprites.
+        static readonly Color[] TileColors = { HudTheme.CockpitTeal, HudTheme.ShipYellow, HudTheme.RockOrange, HudTheme.SatelliteBlue };
+
         readonly GameController game;
         readonly GazeButtons buttons = new GazeButtons();
         // Buttons are rebuilt only when what they show or the screen size changes.
@@ -45,6 +48,7 @@ namespace GazeLab
                     {
                         Rect = HudTheme.R(left + (i % 2) * (width + Gap), top + (i / 2) * (Height + Gap), width, Height),
                         Number = (i + 1).ToString(),
+                        Accent = TileColors[i % TileColors.Length],
                         Title = mode.Name,
                         Body = mode.Description(game.settings),
                         Action = () => game.StartMode(mode)
@@ -53,17 +57,17 @@ namespace GazeLab
             }
             else if (game.State == GameState.GameOver)
             {
-                const float Width = 280f, Height = 104f, Gap = 24f;
-                float y = vh * 0.5f + 10f;
+                const float Width = 280f, Height = 112f, Gap = 24f;
+                float y = vh * 0.5f + 2f;
                 yield return new GazeButtons.Button
                 {
                     Rect = HudTheme.R(vw * 0.5f - Width - Gap * 0.5f, y, Width, Height),
-                    Title = "Restart", Body = game.Mode.Name, Action = game.RestartRound
+                    Title = "Restart", Body = game.Mode.Name, Accent = HudTheme.ShipYellow, Action = game.RestartRound
                 };
                 yield return new GazeButtons.Button
                 {
                     Rect = HudTheme.R(vw * 0.5f + Gap * 0.5f, y, Width, Height),
-                    Title = "Change mode", Body = "Back to the mode menu", Action = game.ShowMenu
+                    Title = "Change mode", Body = "Back to the mode menu", Accent = HudTheme.CockpitTeal, Action = game.ShowMenu
                 };
             }
         }
@@ -76,22 +80,22 @@ namespace GazeLab
 
         void DrawMenu(HudTheme theme)
         {
-            HudTheme.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.5f));
+            HudTheme.Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.45f));
             if (buttons.Items.Count == 0) return;
             float top = buttons.Items[0].Rect.y / HudTheme.Scale;
-            HudTheme.Text(HudTheme.R(0, top - 92, HudTheme.Width, 44), "Choose a shooting mode", theme.Huge, Color.white);
-            HudTheme.Text(HudTheme.R(0, top - 48, HudTheme.Width, 24), "Look at a mode for one second", theme.Center, HudTheme.Muted);
+            HudTheme.Shadowed(HudTheme.R(0, top - 112, HudTheme.Width, 60), "Choose your shooting mode", theme.Title, HudTheme.ShipYellow, HudTheme.ShipRed, 5f);
+            HudTheme.Write(HudTheme.R(0, top - 46, HudTheme.Width, 26), "Look at a mode for one second", theme.Subtitle, HudTheme.Foreground);
             DrawTiles(theme);
         }
 
         void DrawGameOver(HudTheme theme)
         {
             float vw = HudTheme.Width, vh = HudTheme.Height;
-            Rect card = HudTheme.R(vw * 0.5f - 330, vh * 0.5f - 120, 660, 268);
-            theme.Box(card, HudTheme.PanelSolid);
-            theme.Outline(card, HudTheme.Edge);
-            HudTheme.Text(HudTheme.R(vw * 0.5f - 330, vh * 0.5f - 104, 660, 40), "GAME OVER", theme.Huge, Color.white);
-            HudTheme.Text(HudTheme.R(vw * 0.5f - 330, vh * 0.5f - 58, 660, 30), "Score " + game.Score, theme.Center, HudTheme.Accent);
+            theme.Plate(HudTheme.R(vw * 0.5f - 330, vh * 0.5f - 120, 660, 270), HudTheme.Panel, 7f);
+            Rect banner = HudTheme.R(vw * 0.5f - 230, vh * 0.5f - 150, 460, 74);
+            theme.Plate(banner, HudTheme.ShipRed, 6f);
+            HudTheme.Shadowed(banner, "GAME OVER", theme.Banner, HudTheme.ShipYellow, HudTheme.Shade(HudTheme.ShipRed, 0.45f), 4f);
+            HudTheme.Shadowed(HudTheme.R(vw * 0.5f - 330, vh * 0.5f - 62, 660, 50), "Score " + game.Score, theme.Callout, HudTheme.Foreground, HudTheme.Ink, 2f);
             DrawTiles(theme);
         }
 
@@ -103,24 +107,27 @@ namespace GazeLab
                 GazeButtons.Button button = buttons.Items[i];
                 bool hovered = i == buttons.Hovered;
                 Rect r = button.Rect;
-                theme.Box(r, hovered ? new Color(0.07f, 0.2f, 0.3f, 0.97f) : HudTheme.PanelSolid);
-                theme.Outline(r, hovered ? HudTheme.Good : HudTheme.Edge);
+                theme.Plate(r, hovered ? HudTheme.PanelLight : HudTheme.Panel, 6f);
+                if (hovered) theme.Outline(r, button.Accent);
 
-                float textLeft = 20 * s;
+                float textLeft = 22 * s;
                 if (!string.IsNullOrEmpty(button.Number))
                 {
-                    Rect badge = new Rect(r.x + 18 * s, r.y + 18 * s, 36 * s, 36 * s);
-                    theme.Circle(badge, hovered ? HudTheme.Good : new Color(HudTheme.Accent.r, HudTheme.Accent.g, HudTheme.Accent.b, 0.2f));
-                    HudTheme.Text(badge, button.Number, theme.Badge, hovered ? HudTheme.OnAccent : HudTheme.Accent);
-                    textLeft = 66 * s;
+                    Rect badge = new Rect(r.x + 18 * s, r.y + 18 * s, 44 * s, 44 * s);
+                    theme.Circle(new Rect(badge.x, badge.y + 4 * s, badge.width, badge.height), HudTheme.Shade(button.Accent));
+                    theme.Circle(badge, button.Accent);
+                    HudTheme.Write(badge, button.Number, theme.Badge, HudTheme.Ink);
+                    textLeft = 76 * s;
                 }
-                HudTheme.Text(new Rect(r.x + textLeft, r.y + 20 * s, r.width - textLeft - 18 * s, 32 * s), button.Title, theme.TileTitle, Color.white);
-                HudTheme.Text(new Rect(r.x + textLeft, r.y + 56 * s, r.width - textLeft - 18 * s, r.height - 70 * s), button.Body, theme.TileBody, HudTheme.Muted);
+                HudTheme.Write(new Rect(r.x + textLeft, r.y + 20 * s, r.width - textLeft - 18 * s, 36 * s), button.Title, theme.TileTitle,
+                    hovered ? button.Accent : HudTheme.Foreground);
+                HudTheme.Write(new Rect(r.x + textLeft, r.y + 58 * s, r.width - textLeft - 18 * s, r.height - 72 * s), button.Body, theme.TileBody, HudTheme.Muted);
 
                 if (!hovered) continue;
-                Rect bar = new Rect(r.x + 14 * s, r.yMax - 14 * s, r.width - 28 * s, 5 * s);
-                HudTheme.Fill(bar, HudTheme.Track);
-                HudTheme.Fill(new Rect(bar.x, bar.y, bar.width * Mathf.Clamp01(buttons.Progress), bar.height), HudTheme.Good);
+                Rect bar = new Rect(r.x + 16 * s, r.yMax - 22 * s, r.width - 32 * s, 10 * s);
+                theme.Box(bar, HudTheme.Track);
+                float progress = Mathf.Clamp01(buttons.Progress);
+                if (progress > 0.02f) theme.Box(new Rect(bar.x, bar.y, Mathf.Max(bar.height, bar.width * progress), bar.height), button.Accent);
             }
         }
     }

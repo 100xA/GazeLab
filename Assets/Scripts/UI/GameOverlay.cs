@@ -40,22 +40,33 @@ namespace GazeLab
             for (int i = 1; i < trail.Count; i++)
             {
                 float fade = Mathf.Clamp01(1 - (now - trail[i].Time) / TrailSeconds);
-                GUI.color = new Color(HudTheme.Accent.r, HudTheme.Accent.g, HudTheme.Accent.b, 0.45f * fade);
-                HudTheme.Line(HudTheme.ToGui(trail[i - 1].Point), HudTheme.ToGui(trail[i].Point), 2 * s);
+                Color c = HudTheme.ShipYellow;
+                GUI.color = new Color(c.r, c.g, c.b, 0.5f * fade);
+                HudTheme.Line(HudTheme.ToGui(trail[i - 1].Point), HudTheme.ToGui(trail[i].Point), 3 * s);
             }
             if (!gaze.HasValidGaze) return;
             Vector2 point = HudTheme.ToGui(gaze.ScreenPoint);
-            theme.Circle(new Rect(point.x - 4 * s, point.y - 4 * s, 8 * s, 8 * s), Color.white);
+            theme.Circle(new Rect(point.x - 7 * s, point.y - 7 * s, 14 * s, 14 * s), HudTheme.Ink);
+            theme.Circle(new Rect(point.x - 4.5f * s, point.y - 4.5f * s, 9 * s, 9 * s), Color.white);
             if (game.State != GameState.Playing) return;
 
-            GUI.color = game.Targeting.AimTarget != null ? HudTheme.Good : HudTheme.Accent;
+            bool locked = game.Targeting.AimTarget != null;
             string hint = game.Mode.LockHint;
-            if (hint == null) { HudTheme.Ring(point, 17 * s, game.ModeProgress, 3 * s); return; }
-            if (game.Targeting.AimTarget == null) return;
-            HudTheme.Ring(point, 17 * s, 1f, 3 * s);
-            Rect pill = new Rect(point.x + 26 * s, point.y - 12 * s, (24 + hint.Length * 8) * s, 24 * s);
-            theme.Box(pill, HudTheme.Panel);
-            HudTheme.Text(pill, hint, theme.Chip, HudTheme.Good);
+            if (hint == null)
+            {
+                // Dwell: dark track with the yellow progress on top.
+                GUI.color = new Color(0f, 0f, 0f, 0.35f);
+                HudTheme.Ring(point, 20 * s, 1f, 6 * s);
+                GUI.color = HudTheme.ShipYellow;
+                HudTheme.Ring(point, 20 * s, game.ModeProgress, 6 * s);
+                return;
+            }
+            if (!locked) return;
+            GUI.color = HudTheme.ShipYellow;
+            HudTheme.Ring(point, 20 * s, 1f, 5 * s);
+            Rect pill = new Rect(point.x + 30 * s, point.y - 14 * s, (30 + hint.Length * 9) * s, 28 * s);
+            theme.Plate(pill, HudTheme.ShipYellow, 3f);
+            HudTheme.Write(pill, hint, theme.Chip, HudTheme.Ink);
         }
 
         public void DrawShotFeedback(HudTheme theme, GameController game, float now)
@@ -65,13 +76,12 @@ namespace GazeLab
             if (now - feedback.Time < 1.2f && feedback.Text.Length > 0)
             {
                 Color color = feedback.Fired ? HudTheme.Good : HudTheme.Warn;
-                Rect pill = HudTheme.R(HudTheme.Width * 0.5f - 230, HudTheme.Height - 84, 460, 36);
-                theme.Box(pill, HudTheme.Panel);
-                theme.Outline(pill, color);
-                HudTheme.Text(pill, feedback.Text, theme.Segment, color);
+                Rect pill = HudTheme.R(HudTheme.Width * 0.5f - 240, HudTheme.Height - 92, 480, 40);
+                theme.Plate(pill, color, 4f);
+                HudTheme.Write(pill, feedback.Text, theme.Button, HudTheme.Ink);
             }
-            if (now - game.Cannon.LastShotTime < 0.2f)
-                HudTheme.Text(HudTheme.R(HudTheme.Width * 0.5f - 100, 24, 200, 44), "HIT", theme.Huge, HudTheme.Good);
+            if (now - game.Cannon.LastShotTime < 0.25f)
+                HudTheme.Shadowed(HudTheme.R(HudTheme.Width * 0.5f - 150, 20, 300, 80), "HIT!", theme.Hit, HudTheme.ShipYellow, HudTheme.ShipRed, 5f);
         }
 
         static void DrawTargetHighlight(GameController game)
@@ -81,10 +91,13 @@ namespace GazeLab
             if (target == null || cam == null) return;
             Vector2 lo = cam.WorldToScreenPoint(target.bounds.min);
             Vector2 hi = cam.WorldToScreenPoint(target.bounds.max);
-            float pad = 6 * HudTheme.Scale;
+            float s = HudTheme.Scale, pad = 8 * s;
             Rect rect = Rect.MinMaxRect(lo.x - pad, Screen.height - hi.y - pad, hi.x + pad, Screen.height - lo.y + pad);
-            GUI.color = HudTheme.Good;
-            HudTheme.Corners(rect, 2.5f * HudTheme.Scale, Mathf.Min(rect.width, rect.height) * 0.25f);
+            float length = Mathf.Min(rect.width, rect.height) * 0.22f;
+            GUI.color = HudTheme.Ink;
+            HudTheme.Corners(new Rect(rect.x, rect.y + 3 * s, rect.width, rect.height), 6 * s, length);
+            GUI.color = HudTheme.ShipYellow;
+            HudTheme.Corners(rect, 6 * s, length);
         }
 
         static void DrawEyesClosed(HudTheme theme, GameController game, GazeInput gaze)
@@ -92,11 +105,9 @@ namespace GazeLab
             if (!game.Mode.ShowsEyesClosedTimer || !gaze.Blink.EyesClosed) return;
             float t = gaze.Blink.ClosedSeconds;
             bool inWindow = t >= game.settings.blinkMinSeconds && t <= game.settings.blinkMaxSeconds;
-            Color color = inWindow ? HudTheme.Good : HudTheme.Warn;
-            Rect pill = HudTheme.R(HudTheme.Width * 0.5f - 160, 80, 320, 52);
-            theme.Box(pill, HudTheme.Panel);
-            theme.Outline(pill, color);
-            HudTheme.Text(pill, "Eyes closed " + Format.Number(t, "0.00") + " s", theme.Center, color);
+            Rect pill = HudTheme.R(HudTheme.Width * 0.5f - 170, 96, 340, 56);
+            theme.Plate(pill, inWindow ? HudTheme.Good : HudTheme.Warn, 5f);
+            HudTheme.Write(pill, "Eyes closed " + Format.Number(t, "0.00") + " s", theme.Callout, HudTheme.Ink);
         }
     }
 }

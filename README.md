@@ -59,6 +59,8 @@ All game scripts are in `Assets/Scripts` (namespace `GazeLab`):
 | `UI` | `GazeHud` (IMGUI entry point), `StatusCard`, `MenuView` with `GazeButtons` (gaze-only buttons), `GameOverlay` (marker, trail, feedback), `HudTheme` (colours, fonts, drawing helpers) |
 | `Targets` | `MovingTarget` base class with `RockController` and `SatelliteController`, `PlayerController` (ship) |
 
+The HUD (`HudTheme`) uses the colours of the game sprites and two fonts under the SIL Open Font License, Lilita One and Varela Round. They are in `Assets/Resources/Fonts`, together with their licence files.
+
 To add a shooting mode, create a class derived from `ShotMode` and add it to `ShotModes.All`. The menu, HUD texts and checks pick it up from there.
 
 ## Automated checks

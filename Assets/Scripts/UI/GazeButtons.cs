@@ -16,6 +16,7 @@ namespace GazeLab
         {
             public Rect Rect;          // GUI pixels
             public string Number, Title, Body;
+            public Color Accent;
             public Action Action;
         }
 

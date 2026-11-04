@@ -79,7 +79,7 @@ public class GazeInput : MonoBehaviour
         SetSimulation(mouseSimulation);
         if (mouseSimulation)
         {
-            if (tobiiArmedAt > 0f) tobiiArmedAt = -1f;
+            EndTobiiSession();
             PlayerPrefs.SetInt(PrefUseTobii, 0);
             PlayerPrefs.SetInt(PrefTobiiPending, 0);
             PlayerPrefs.Save();
@@ -197,38 +197,32 @@ public class GazeInput : MonoBehaviour
 #endif
 
     /// <summary>
-    /// Marks the Tobii start as pending before the native library is touched. If Unity crashes,
-    /// the flag is still set on the next start and the game falls back to mouse simulation.
-    /// After a few crash-free seconds Tobii is remembered as the preferred source.
+    /// Marks a Tobii session as running before the native library is touched. The flag is only
+    /// cleared when the session ends normally (leaving Play mode, switching to the mouse). If Unity
+    /// crashes at any time while Tobii is in use, the flag is still set on the next start and the
+    /// game falls back to mouse simulation instead of crashing again.
     /// </summary>
     void GuardTobiiStart()
     {
-        if (tobiiArmedAt < 0f)
-        {
-            tobiiArmedAt = Time.unscaledTime;
-            PlayerPrefs.SetInt(PrefTobiiPending, 1);
-            PlayerPrefs.Save();
-        }
-        else if (tobiiArmedAt > 0f && Time.unscaledTime - tobiiArmedAt >= TobiiConfirmSeconds)
-        {
-            tobiiArmedAt = 0f; // confirmed for this session
-            TobiiCrashedLastTime = false;
-            PlayerPrefs.SetInt(PrefTobiiPending, 0);
-            PlayerPrefs.SetInt(PrefUseTobii, 1);
-            PlayerPrefs.Save();
-        }
+        if (tobiiArmedAt >= 0f) return;
+        tobiiArmedAt = Time.unscaledTime;
+        TobiiCrashedLastTime = false;
+        PlayerPrefs.SetInt(PrefTobiiPending, 1);
+        PlayerPrefs.Save();
     }
 
-    void OnDisable()
+    /// <summary>Normal end of a Tobii session: no crash, remember Tobii if it was used for a while.</summary>
+    void EndTobiiSession()
     {
-        // Leaving Play mode normally is not a crash: clear an unconfirmed Tobii start.
-        if (tobiiArmedAt > 0f)
-        {
-            tobiiArmedAt = -1f;
-            PlayerPrefs.SetInt(PrefTobiiPending, 0);
-            PlayerPrefs.Save();
-        }
+        if (tobiiArmedAt < 0f) return;
+        bool usedLongEnough = Time.unscaledTime - tobiiArmedAt >= TobiiConfirmSeconds;
+        tobiiArmedAt = -1f;
+        PlayerPrefs.SetInt(PrefTobiiPending, 0);
+        if (usedLongEnough) PlayerPrefs.SetInt(PrefUseTobii, 1);
+        PlayerPrefs.Save();
     }
+
+    void OnDisable() { EndTobiiSession(); }
 
     /// <summary>Damps fixation jitter, but follows saccades (large jumps) immediately.</summary>
     Vector2 Smooth(Vector2 raw)

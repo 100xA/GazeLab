@@ -12,7 +12,7 @@ This project adapts the Moodle Space Shooter starter for the Eye Gaze Interactio
 3. Select a 16:9 Game view, preferably **1920 x 1080**.
 4. Press Play. The first start uses **mouse simulation**. Click **Tobii eye tracker** in the top-left panel once. After that, every start uses the tracker, so the mode menu can be operated with the eyes alone.
 
-The Tobii native library crashes Unity if the installed Tobii runtime does not fit the SDK. The lab slides warn about Tobii Core Software 2.16.8. If Unity crashes while starting Tobii, the next start falls back to mouse simulation and says so in the panel. In that case, install **Tobii Experience** (see below).
+The Tobii native library crashes Unity if the installed Tobii runtime does not fit the SDK. The lab slides warn about Tobii Core Software 2.16.8. If Unity crashes at any point while Tobii is in use, the next start falls back to mouse simulation and says so in the panel. In that case, install **Tobii Experience** (see below).
 
 ## Shooting modes (Midas touch)
 

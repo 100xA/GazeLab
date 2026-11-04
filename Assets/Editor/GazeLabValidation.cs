@@ -63,8 +63,7 @@ public static class GazeLabValidation
         GameController game = Object.FindObjectOfType<GameController>();
         Check(game != null, "scene contains GameController");
         GazeInput input = game.GetComponent<GazeInput>();
-        // The Tobii native library is only loaded after an explicit selection in the HUD.
-        Check(input != null && input.IsSimulation, "game starts in labelled mouse simulation; Tobii loads only when selected");
+        Check(input != null, "scene has gaze input");
         Check(game.InMenu && CountTargets() == 0 && game.DwellTarget == null,
             "game starts in the gaze mode menu without targets");
         Vector3 initialShipPosition = game.spaceship.transform.position;

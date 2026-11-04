@@ -11,9 +11,14 @@ using Tobii.Gaming;
 /// </summary>
 public class GazeInput : MonoBehaviour
 {
-    // The Tobii native library can crash the Unity Editor when no tracker/runtime is present.
-    // It is therefore only loaded after the player explicitly selects "Tobii eye tracker".
+    // The Tobii native library can crash Unity when the Tobii runtime does not fit the SDK
+    // (e.g. old Tobii Core Software). It is therefore only loaded after the player selected
+    // "Tobii eye tracker" once. A crash guard falls back to mouse simulation on the next start.
     public bool simulateMouse = true;
+    [Tooltip("Smoothing of small gaze jitter (0 = raw gaze). Large jumps (saccades) are never smoothed.")]
+    [Range(0f, 0.95f)] public float gazeSmoothing = 0.75f;
+    [Tooltip("Gaze jumps larger than this (pixels) are treated as saccades and followed immediately.")]
+    public float saccadeThresholdPixels = 90f;
     /// <summary>Set by the GameController while the head-nod shooting mode is active.</summary>
     public bool trackHeadPose;
     [Range(0.02f, 0.5f)] public float maximumSampleAge = 0.1f;
@@ -40,13 +45,45 @@ public class GazeInput : MonoBehaviour
     public string HeadStatus { get; private set; }
 
     bool lastSimulation;
+    Vector2 smoothedPoint;
+    bool hasSmoothedPoint;
+
+    // Crash guard (stored in PlayerPrefs, survives an Editor crash).
+    const string PrefUseTobii = "GazeLab.UseTobii";
+    const string PrefTobiiPending = "GazeLab.TobiiInitPending";
+    const float TobiiConfirmSeconds = 3f;
+    float tobiiArmedAt = -1f;
+    /// <summary>True when Unity crashed while the Tobii library was starting last time.</summary>
+    public bool TobiiCrashedLastTime { get; private set; }
 
     void Awake()
     {
         StatusText = "Waiting for gaze";
         HeadStatus = "";
+        if (PlayerPrefs.GetInt(PrefTobiiPending, 0) == 1)
+        {
+            TobiiCrashedLastTime = true;
+            PlayerPrefs.SetInt(PrefTobiiPending, 0);
+            PlayerPrefs.SetInt(PrefUseTobii, 0);
+            PlayerPrefs.Save();
+            simulateMouse = true;
+        }
+        else if (PlayerPrefs.GetInt(PrefUseTobii, 0) == 1) simulateMouse = false;
         lastSimulation = simulateMouse;
         if (GetComponent<GazeHud>() == null) gameObject.AddComponent<GazeHud>();
+    }
+
+    /// <summary>Called by the HUD buttons: switches the source and remembers the choice.</summary>
+    public void ChooseSource(bool mouseSimulation)
+    {
+        SetSimulation(mouseSimulation);
+        if (mouseSimulation)
+        {
+            if (tobiiArmedAt > 0f) tobiiArmedAt = -1f;
+            PlayerPrefs.SetInt(PrefUseTobii, 0);
+            PlayerPrefs.SetInt(PrefTobiiPending, 0);
+            PlayerPrefs.Save();
+        }
     }
 
     /// <summary>true: mouse simulation, false: Tobii eye tracker. Cancels any pending selection.</summary>
@@ -66,6 +103,7 @@ public class GazeInput : MonoBehaviour
 
     void ResetSignals()
     {
+        hasSmoothedPoint = false;
         eyesClosed = false;
         EyesClosedCandidate = false;
         EyesClosedSeconds = 0f;
@@ -102,10 +140,13 @@ public class GazeInput : MonoBehaviour
                 return true;
             }
             HasValidGaze = InBounds(ScreenPoint);
-            StatusText = HasValidGaze ? "MOUSE SIMULATION - no eye tracker" : "Move pointer into the game";
+            StatusText = TobiiCrashedLastTime
+                ? "MOUSE SIMULATION - Tobii crashed Unity last time (install Tobii Experience, see README)"
+                : HasValidGaze ? "MOUSE SIMULATION - no eye tracker" : "Move pointer into the game";
             return false;
         }
 #if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+        GuardTobiiStart();
         string notReady;
         if (!TobiiReady(out notReady))
         {
@@ -119,7 +160,7 @@ public class GazeInput : MonoBehaviour
             StatusText = "Gaze lost or stale (eyes closed?) - paused";
             return true; // tracker connected, but no current gaze: candidate for a blink
         }
-        ScreenPoint = sample.Screen; // Already Unity bottom-left coordinates. Do not invert Y.
+        ScreenPoint = Smooth(sample.Screen); // Already Unity bottom-left coordinates. Do not invert Y.
         HasValidGaze = InBounds(ScreenPoint);
         StatusText = HasValidGaze ? "Tobii gaze active" : "Gaze outside game - paused";
         return false;
@@ -154,6 +195,55 @@ public class GazeInput : MonoBehaviour
         return true;
     }
 #endif
+
+    /// <summary>
+    /// Marks the Tobii start as pending before the native library is touched. If Unity crashes,
+    /// the flag is still set on the next start and the game falls back to mouse simulation.
+    /// After a few crash-free seconds Tobii is remembered as the preferred source.
+    /// </summary>
+    void GuardTobiiStart()
+    {
+        if (tobiiArmedAt < 0f)
+        {
+            tobiiArmedAt = Time.unscaledTime;
+            PlayerPrefs.SetInt(PrefTobiiPending, 1);
+            PlayerPrefs.Save();
+        }
+        else if (tobiiArmedAt > 0f && Time.unscaledTime - tobiiArmedAt >= TobiiConfirmSeconds)
+        {
+            tobiiArmedAt = 0f; // confirmed for this session
+            TobiiCrashedLastTime = false;
+            PlayerPrefs.SetInt(PrefTobiiPending, 0);
+            PlayerPrefs.SetInt(PrefUseTobii, 1);
+            PlayerPrefs.Save();
+        }
+    }
+
+    void OnDisable()
+    {
+        // Leaving Play mode normally is not a crash: clear an unconfirmed Tobii start.
+        if (tobiiArmedAt > 0f)
+        {
+            tobiiArmedAt = -1f;
+            PlayerPrefs.SetInt(PrefTobiiPending, 0);
+            PlayerPrefs.Save();
+        }
+    }
+
+    /// <summary>Damps fixation jitter, but follows saccades (large jumps) immediately.</summary>
+    Vector2 Smooth(Vector2 raw)
+    {
+        if (!hasSmoothedPoint || Vector2.Distance(raw, smoothedPoint) > saccadeThresholdPixels)
+        {
+            smoothedPoint = raw;
+            hasSmoothedPoint = true;
+            return raw;
+        }
+        // Frame-rate independent exponential smoothing (gazeSmoothing is the per-1/60 s retention).
+        float keep = Mathf.Pow(Mathf.Clamp(gazeSmoothing, 0f, 0.95f), Time.unscaledDeltaTime * 60f);
+        smoothedPoint = Vector2.Lerp(raw, smoothedPoint, keep);
+        return smoothedPoint;
+    }
 
     void UpdateBlink(bool closedCandidate)
     {

@@ -11,11 +11,15 @@ public class GameController : MonoBehaviour
     public int SpawnIntervalSeconds = 4;
     public float DwellSeconds = 0.6f;
     [Tooltip("Shortest eye closure that counts as a deliberate blink (natural blinks are shorter).")]
-    public float BlinkMinSeconds = 0.3f;
+    public float BlinkMinSeconds = 0.15f;
     [Tooltip("Longest eye closure that still counts as a blink; longer closures pause the game.")]
     public float BlinkMaxSeconds = 1.5f;
     [Tooltip("How long a target stays locked after the gaze left it (blink, nod or button).")]
     public float LockGraceSeconds = 0.35f;
+    [Tooltip("Gaze that misses every target by less than this (world units, about 65 px at 1080p) still selects the nearest target.")]
+    public float GazeToleranceWorld = 0.6f;
+    [Tooltip("Dwell progress survives gaze jitter that leaves the target for at most this long.")]
+    public float DwellLossToleranceSeconds = 0.15f;
     public int points, damage;
     public SelectionMode Mode = SelectionMode.Dwell;
     public bool InMenu { get; private set; }
@@ -115,14 +119,22 @@ public class GameController : MonoBehaviour
         Vector3 world = cam.ScreenToWorldPoint(new Vector3(screen.x, screen.y, -cam.transform.position.z));
         Physics2D.SyncTransforms();
         Collider2D candidate = FindFrontmostTarget(world);
+        if (candidate == null)
+        {
+            // Brief jitter off the target (tracker noise) keeps the dwell progress frozen.
+            if (DwellTarget != null && IsTarget(DwellTarget) && Time.unscaledTime - lockedTime <= DwellLossToleranceSeconds) return;
+            ResetDwell();
+            return;
+        }
+        // Gaze inside the target aims at that spot, a near miss aims at the target centre.
+        Vector2 aim = candidate.OverlapPoint(world) ? (Vector2)world : (Vector2)candidate.bounds.center;
         RaycastHit2D hit;
-        if (candidate == null || !FirstHitIsTarget(world, candidate, out hit))
-        { ResetDwell(); return; }
+        if (!FirstHitIsTarget(aim, candidate, out hit)) { ResetDwell(); return; }
         IsLineOfFireClear = true;
         if (DwellTarget != candidate) { DwellTarget = candidate; dwellElapsed = 0f; }
         else dwellElapsed += Time.deltaTime;
         lockedTarget = candidate;
-        lockedOffset = (Vector2)world - (Vector2)candidate.transform.position;
+        lockedOffset = aim - (Vector2)candidate.transform.position;
         lockedTime = Time.unscaledTime;
 
         if (Mode != SelectionMode.Dwell) { DwellProgress = 0f; return; }
@@ -130,7 +142,7 @@ public class GameController : MonoBehaviour
         if (DwellProgress >= 1f)
         {
             // Recheck the first actual cannon hit immediately before firing.
-            if (FirstHitIsTarget(world, candidate, out hit)) FirePhaserBeam(candidate, hit.point);
+            if (FirstHitIsTarget(aim, candidate, out hit)) FirePhaserBeam(candidate, hit.point);
             ResetDwell();
         }
     }
@@ -201,6 +213,24 @@ public class GameController : MonoBehaviour
     }
 
     private Collider2D FindFrontmostTarget(Vector2 world)
+    {
+        Collider2D exact = FindFrontmostTargetAt(world);
+        if (exact != null || GazeToleranceWorld <= 0f) return exact;
+        // Eye trackers are accurate to roughly 1 degree: accept the nearest target close to the gaze point.
+        Collider2D nearest = null;
+        float nearestDistance = float.PositiveInfinity;
+        foreach (Collider2D candidate in Physics2D.OverlapCircleAll(world, GazeToleranceWorld))
+        {
+            if (!IsTarget(candidate)) continue;
+            SpriteRenderer renderer = candidate.GetComponent<SpriteRenderer>();
+            if (renderer == null || !renderer.enabled || renderer.sprite == null) continue;
+            float distance = Vector2.Distance(world, candidate.bounds.ClosestPoint(world));
+            if (distance < nearestDistance) { nearestDistance = distance; nearest = candidate; }
+        }
+        return nearest;
+    }
+
+    private Collider2D FindFrontmostTargetAt(Vector2 world)
     {
         Collider2D best = null;
         SpriteRenderer bestRenderer = null;

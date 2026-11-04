@@ -12,6 +12,8 @@ public class GazeHud : MonoBehaviour
     struct GazeButton { public Rect rect; public string title, body; public System.Action action; }
 
     const float MenuDwellSeconds = 1f;
+    const float ButtonTolerancePixels = 40f;   // gaze slightly outside a button still counts
+    const float ButtonLossToleranceSeconds = 0.3f; // blinks / jitter keep the progress frozen
     static readonly GameController.SelectionMode[] MenuModes =
     {
         GameController.SelectionMode.Dwell, GameController.SelectionMode.Blink,
@@ -25,7 +27,7 @@ public class GazeHud : MonoBehaviour
     Texture2D dot;
     GUIStyle titleStyle, labelStyle, bigStyle, buttonTitleStyle, buttonBodyStyle, centerStyle;
     int hoveredButton = -1;
-    float buttonDwell;
+    float buttonDwell, lastButtonHit;
     bool previousSimulation;
 
     static Rect Panel { get { return new Rect(12, 12, Mathf.Min(640, Screen.width - 24), 166); } }
@@ -106,22 +108,21 @@ public class GazeHud : MonoBehaviour
         previousSimulation = input.IsSimulation;
         trace.RemoveAll(p => Time.unscaledTime - p.time > 0.65f);
         RebuildButtons();
+        if (hoveredButton >= buttons.Count) { hoveredButton = -1; buttonDwell = 0; }
         if (!input.HasValidGaze)
         {
             trace.Clear();
-            hoveredButton = -1;
-            buttonDwell = 0;
+            KeepOrDropHover();
             return;
         }
         trace.Add(new TracePoint { point = input.ScreenPoint, time = Time.unscaledTime });
         if (trace.Count > 100) trace.RemoveAt(0);
 
         // Gaze-only buttons: look at one for MenuDwellSeconds to activate it.
-        Vector2 position = ToGui(input.ScreenPoint);
-        int hovered = -1;
-        for (int i = 0; i < buttons.Count; i++) if (buttons[i].rect.Contains(position)) hovered = i;
+        int hovered = ButtonUnderGaze(ToGui(input.ScreenPoint));
+        if (hovered < 0) { KeepOrDropHover(); return; }
+        lastButtonHit = Time.unscaledTime;
         if (hovered != hoveredButton) { hoveredButton = hovered; buttonDwell = 0; }
-        if (hovered < 0) return;
         buttonDwell += Time.unscaledDeltaTime;
         if (buttonDwell >= MenuDwellSeconds)
         {
@@ -131,6 +132,30 @@ public class GazeHud : MonoBehaviour
             trace.Clear();
             action();
         }
+    }
+
+    /// <summary>Button containing the gaze point, or the nearest one within the tolerance.</summary>
+    int ButtonUnderGaze(Vector2 position)
+    {
+        int best = -1;
+        float bestDistance = ButtonTolerancePixels;
+        for (int i = 0; i < buttons.Count; i++)
+        {
+            Rect r = buttons[i].rect;
+            float dx = Mathf.Max(r.xMin - position.x, 0f, position.x - r.xMax);
+            float dy = Mathf.Max(r.yMin - position.y, 0f, position.y - r.yMax);
+            float distance = Mathf.Sqrt(dx * dx + dy * dy);
+            if (distance <= bestDistance) { bestDistance = distance; best = i; }
+        }
+        return best;
+    }
+
+    /// <summary>Short gaze loss (blink, jitter) freezes the button progress instead of resetting it.</summary>
+    void KeepOrDropHover()
+    {
+        if (hoveredButton >= 0 && Time.unscaledTime - lastButtonHit <= ButtonLossToleranceSeconds) return;
+        hoveredButton = -1;
+        buttonDwell = 0;
     }
 
     void OnGUI()
@@ -184,7 +209,7 @@ public class GazeHud : MonoBehaviour
         GUI.color = Color.white;
         GUI.Label(new Rect(24, 70, panel.width - 20, 22), game.InMenu
             ? "Look at a mode for 1 s to start. Rocks +20 / Satellites -100."
-            : ModeInstruction(game.Mode) + " Rocks +20 / Satellites -100.", labelStyle);
+            : ModeInstruction(game) + " Rocks +20 / Satellites -100.", labelStyle);
         if (!game.InMenu && game.Mode == GameController.SelectionMode.Nod && input.HeadStatus.Length > 0)
         {
             GUI.color = input.HeadPoseAvailable ? Color.cyan : new Color(1f, 0.72f, 0.2f);
@@ -192,8 +217,8 @@ public class GazeHud : MonoBehaviour
             GUI.color = Color.white;
         }
         float y = 118;
-        if (GUI.Button(new Rect(24, y, 150, 22), "Tobii eye tracker")) input.SetSimulation(false);
-        if (GUI.Button(new Rect(184, y, 150, 22), "Mouse simulation")) input.SetSimulation(true);
+        if (GUI.Button(new Rect(24, y, 150, 22), "Tobii eye tracker")) input.ChooseSource(false);
+        if (GUI.Button(new Rect(184, y, 150, 22), "Mouse simulation")) input.ChooseSource(true);
         GUI.Label(new Rect(24, 144, panel.width - 20, 22), "Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED", labelStyle);
     }
 
@@ -283,7 +308,7 @@ public class GazeHud : MonoBehaviour
         switch (mode)
         {
             case GameController.SelectionMode.Blink:
-                return "Look at a target, then close your eyes for about half a second. Normal blinks are ignored.\n(Simulation: hold B)";
+                return "Look at a target, then close your eyes a little longer than a normal blink.\n(Simulation: hold B)";
             case GameController.SelectionMode.Nod:
                 return "Look at a target, then nod your head once.\n(Simulation: press N)";
             case GameController.SelectionMode.Button:
@@ -293,11 +318,12 @@ public class GazeHud : MonoBehaviour
         }
     }
 
-    static string ModeInstruction(GameController.SelectionMode mode)
+    static string ModeInstruction(GameController game)
     {
-        switch (mode)
+        switch (game.Mode)
         {
-            case GameController.SelectionMode.Blink: return "Aim, then close eyes 0.3-1.5 s to fire.";
+            case GameController.SelectionMode.Blink:
+                return "Aim, then close eyes " + game.BlinkMinSeconds.ToString("0.0#") + "-" + game.BlinkMaxSeconds.ToString("0.0#") + " s to fire.";
             case GameController.SelectionMode.Nod: return "Aim, then nod once to fire.";
             case GameController.SelectionMode.Button: return "Aim, then press Space / left click to fire.";
             default: return "Dwell 0.6 s on a target to fire.";

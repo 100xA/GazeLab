@@ -1,0 +1,152 @@
+1
+00:00:00,400 --> 00:00:04,909
+Willkommen bei Gaze Lab, unserem Space Shooter, der komplett mit den Augen gespielt wird.
+
+2
+00:00:05,359 --> 00:00:17,494
+Links steht das Raumschiff. Von rechts kommen Gesteinsbrocken und Satelliten. Ein Brocken bringt zwanzig Punkte, ein Satellit kostet hundert. Trifft ein Brocken das Schiff, verliert es ein Viertel seiner Hülle.
+
+3
+00:00:17,944 --> 00:00:25,428
+Der Laser feuert nur, wenn das gewählte Ziel das erste Objekt in der Schusslinie ist. Steht etwas im Weg, wird der Schuss blockiert.
+
+4
+00:00:26,433 --> 00:00:37,341
+Die Kernfrage bei Blicksteuerung ist der Midas-Touch: Wir schauen ständig irgendwohin, aber nicht jeder Blick soll einen Schuss auslösen. Deshalb haben wir vier Schussmodi gebaut, zwischen denen man am Anfang wählt.
+
+5
+00:00:38,333 --> 00:00:46,842
+Modus eins: Zielen und Halten, auch Dwell genannt. Man schaut ein Ziel null Komma sechs Sekunden lang an, dann feuert der Laser.
+
+6
+00:00:47,292 --> 00:01:03,334
+Warum null Komma sechs? Beim normalen Umherschauen dauern Fixationen meist nur zweihundert bis dreihundert Millisekunden. Mit null Komma sechs Sekunden liegen wir klar darüber, sodass bloßes Hinsehen nicht schießt. Gleichzeitig ist die Zeit kurz genug, um Ziele zu treffen, die sich bewegen.
+
+7
+00:01:03,784 --> 00:01:08,149
+Ein gelber Ring um das Fadenkreuz zeigt, wie weit der Schuss schon geladen ist.
+
+8
+00:01:09,133 --> 00:01:17,026
+Modus zwei: Zielen und Blinzeln. Man schaut auf ein Ziel und schließt dann beide Augen bewusst etwas länger als bei einem normalen Lidschlag.
+
+9
+00:01:17,476 --> 00:01:34,010
+Gültig ist eine Schließdauer zwischen hundertfünfzig Millisekunden und anderthalb Sekunden. Der Tracker meldet fehlende Augen erst nach hundert Millisekunden, real sind die Augen also etwa eine Viertelsekunde zu. Natürliche Lidschläge sind kürzer und werden ignoriert.
+
+10
+00:01:34,460 --> 00:01:50,506
+Wer die Augen länger als anderthalb Sekunden schließt, schaut eher weg. Dann pausiert das Spiel, statt zu schießen. Außerdem müssen sich die Augen ungefähr dort wieder öffnen, wo sie sich geschlossen haben. So zählt Wegschauen und Zurückschauen nicht als Blinzeln.
+
+11
+00:01:51,500 --> 00:02:00,493
+Modus drei: Zielen und Nicken. Man visiert ein Ziel an und nickt einmal kurz. Dafür nutzen wir die Kopfhaltung, die der Tobii mitliefert.
+
+12
+00:02:00,943 --> 00:02:13,481
+Als Nicken zählt eine Neigung von mindestens neun Grad, die innerhalb von null Komma neun Sekunden zurückkommt. Langsame Haltungsänderungen und Kopfschütteln lösen nichts aus, damit man sich beim Spielen normal bewegen kann.
+
+13
+00:02:13,931 --> 00:02:22,974
+Beim Blinzeln und beim Nicken bewegen sich die Augen zwangsläufig mit. Deshalb bleibt das Ziel nach dem Wegschauen noch dreihundertfünfzig Millisekunden gesperrt.
+
+14
+00:02:23,967 --> 00:02:37,714
+Modus vier: Zielen und Leertaste oder Mausklick. Er dient nur als Vergleich, denn laut Aufgabe ist ein Tastendruck zur Bestätigung nicht erlaubt. Die Modi eins bis drei sind unsere eigentlichen Lösungen, nur mit Blick und Kopf.
+
+15
+00:02:38,700 --> 00:02:52,500
+Auch das Menü wird nur mit den Augen bedient: Man schaut eine Kachel eine Sekunde lang an. Hier haben wir bewusst länger gewählt als beim Schießen, denn eine falsche Menüauswahl ist ärgerlicher als ein verpasster Schuss, und im Menü gibt es keinen Zeitdruck.
+
+16
+00:02:52,950 --> 00:03:01,008
+Neue Knöpfe ignorieren den Blick in den ersten null Komma sechs Sekunden. Sonst würde ein Menü, das genau unter dem Blick auftaucht, sofort auslösen.
+
+17
+00:03:02,000 --> 00:03:10,959
+Gespielt wird entweder mit dem Eye Tracker oder mit der Maus. Oben links schaltet man um. Standardmäßig startet das Spiel immer mit dem Tobii Eye Tracker.
+
+18
+00:03:11,409 --> 00:03:25,193
+Die Maus ist eine Simulation für die Entwicklung ohne Tracker: Der Mauszeiger ersetzt den Blick, die Taste B simuliert geschlossene Augen und die Taste N ein Nicken. Die Statuskarte zeigt dann deutlich an, dass gerade simuliert wird.
+
+19
+00:03:25,643 --> 00:03:33,720
+Daneben gleicht das Spiel die Windows-Skalierung aus. Bei hundertfünfzig Prozent würde der Tobii den Blickpunkt sonst in Richtung Bildmitte verschieben.
+
+20
+00:03:34,733 --> 00:03:40,405
+Jetzt zum Spiel. Wir wählen Modus eins, den Dwell, mit einer Sekunde Blick auf die Kachel.
+
+21
+00:03:41,400 --> 00:03:53,166
+Das gelbe Fadenkreuz zeigt, wohin wir gerade schauen. Liegt der Blick auf einem Brocken, erscheinen gelbe Ecken um das Ziel. Nach null Komma sechs Sekunden feuert der Laser: Treffer, plus zwanzig Punkte.
+
+22
+00:03:54,167 --> 00:04:02,083
+Unten bestätigt ein grünes Schild jeden Schuss. Schaut man aus dem Spielfeld, pausiert das Spiel, damit keine Ziele unbemerkt durchfliegen.
+
+23
+00:04:02,533 --> 00:04:13,618
+Eye Tracker sind nur auf etwa ein Grad genau. Deshalb zählt ein Blick bis etwa fünfundsechzig Pixel neben einem Ziel noch als Treffer, und kurzes Zittern des Blicks setzt den Ring nicht gleich zurück.
+
+24
+00:04:14,633 --> 00:04:30,104
+Hier sieht man die Kehrseite des Dwell: Wer einen Satelliten zu lange anschaut, schießt ihn ab und verliert hundert Punkte. Eine längere Verweilzeit wäre sicherer, würde das Spiel aber träge machen. Null Komma sechs Sekunden sind für uns der beste Kompromiss.
+
+25
+00:04:31,100 --> 00:04:34,327
+Weiter mit Modus zwei, Zielen und Blinzeln.
+
+26
+00:04:35,333 --> 00:04:44,986
+Am Fadenkreuz steht jetzt BLINK, sobald ein Ziel gesperrt ist. Normale Lidschläge lösen nichts aus. Unten erscheint dann: zu kurz, ignoriert.
+
+27
+00:04:46,000 --> 00:04:56,840
+Ein Brocken hat das Schiff getroffen, die Hülle sinkt auf fünfundsiebzig Prozent. Oben zeigt eine Anzeige, wie lange die Augen geschlossen sind. Sie wird grün, sobald die Dauer im gültigen Bereich liegt.
+
+28
+00:04:57,290 --> 00:05:01,841
+Öffnen sich die Augen woanders, wird das als Wegschauen gewertet und ignoriert.
+
+29
+00:05:02,833 --> 00:05:16,735
+Ein bewusstes Blinzeln von knapp zwei Zehntelsekunden feuert auf das gesperrte Ziel. Hier war es ein Satellit, also minus hundert. Weil das Ziel während des Blinzelns gesperrt bleibt, trifft der Laser genau das, was vorher anvisiert war.
+
+30
+00:05:17,733 --> 00:05:27,662
+Die nächsten Blinzler feuern ebenfalls zuverlässig. Gegen den Midas-Touch ist dieser Modus sehr robust, weil man zum Schießen bewusst etwas anderes tun muss als beim normalen Schauen.
+
+31
+00:05:28,667 --> 00:05:34,524
+Modus drei, Zielen und Nicken. Die Statuskarte zeigt dabei die aktuelle Kopfneigung in Grad.
+
+32
+00:05:35,533 --> 00:05:39,817
+Ziel anvisieren, einmal kurz nicken: Treffer, plus zwanzig.
+
+33
+00:05:40,833 --> 00:05:50,703
+Am Fadenkreuz steht NOD, solange ein Ziel gesperrt ist. Weil sich beim Nicken auch der Blick bewegt, bleibt das Ziel kurz gesperrt, und der Schuss trifft trotzdem das richtige Ziel.
+
+34
+00:05:51,700 --> 00:05:54,661
+Zum Vergleich Modus vier mit Leertaste oder Klick.
+
+35
+00:05:55,667 --> 00:06:08,590
+Gezielt wird weiter mit den Augen, bestätigt mit einer Taste. Das ist schnell und eindeutig, braucht aber die Hände, und genau das sollten wir für die Bestätigung vermeiden. Auch hier zeigen das grüne Schild und der Schriftzug HIT jeden Treffer an.
+
+36
+00:06:09,600 --> 00:06:16,545
+Zum Schluss schalten wir oben links auf die Maus. Die Statuskarte zeigt jetzt: Maus-Simulation, kein Eye Tracker.
+
+37
+00:06:17,533 --> 00:06:22,291
+Die Spiellogik und alle Zeiten bleiben gleich. Nur der Blick kommt jetzt vom Mauszeiger.
+
+38
+00:06:23,300 --> 00:06:39,179
+Das war Gaze Lab: vier Schussmodi gegen den Midas-Touch, klares Feedback durch Fadenkreuz, Ladering, Zielrahmen, Hinweise und Sounds, und Zeiten, die so gewählt sind, dass bloßes Hinsehen nicht schießt, das Spiel aber trotzdem flüssig bleibt. Danke fürs Zuschauen!
+

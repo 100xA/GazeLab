@@ -72,3 +72,6 @@ crashlytics-build.properties
 
 # End of https://www.gitignore.io/api/unity
 
+
+# Tobii SDK copies its native libraries to the project root on editor load
+/tobii_gameintegration_*.dll

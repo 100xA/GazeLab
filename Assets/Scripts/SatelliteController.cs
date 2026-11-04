@@ -1,4 +1,4 @@
-// Author: Jan Biernacki. Matriculation number: TO BE PROVIDED.
+// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
 using UnityEngine;
 
 public class SatelliteController : MonoBehaviour

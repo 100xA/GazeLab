@@ -1,3 +1,4 @@
+// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
 using System;
 using System.Reflection;
 using UnityEditor;
@@ -9,7 +10,6 @@ using Object = UnityEngine.Object;
 public static class GazeLabValidation
 {
     const string ActiveKey = "GazeLabValidation.Active";
-    const string LiveTalonKey = "GazeLabValidation.LiveTalonNoHardware";
     const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.NonPublic;
     static double deadline;
     static double playObservedAt = -1;
@@ -18,12 +18,6 @@ public static class GazeLabValidation
     static GazeLabValidation()
     {
         if (SessionState.GetBool(ActiveKey, false)) Attach();
-    }
-
-    public static void RunWithTalonNoHardware()
-    {
-        SessionState.SetBool(LiveTalonKey, true);
-        Run();
     }
 
     public static void Run()
@@ -69,16 +63,10 @@ public static class GazeLabValidation
         GameController game = Object.FindObjectOfType<GameController>();
         Check(game != null, "scene contains GameController");
         GazeInput input = game.GetComponent<GazeInput>();
-        Check(input != null && !input.IsSimulation && !input.simulateMouse,
-            "real gaze is the default; no silent simulation fallback");
-        if (SessionState.GetBool(LiveTalonKey, false))
-        {
-            var receiver = game.GetComponent<TalonGazeReceiver>();
-            Vector2 unused;
-            bool receivedGaze = receiver != null && receiver.TryGetScreenPoint(out unused);
-            Check(receiver != null && !receivedGaze && receiver.StatusText == "Talon active - no gaze/tracker",
-                "actual Talon no-hardware heartbeat reaches Unity and keeps gaze invalid");
-        }
+        // The Tobii native library is only loaded after an explicit selection in the HUD.
+        Check(input != null && input.IsSimulation, "game starts in labelled mouse simulation; Tobii loads only when selected");
+        Check(game.InMenu && CountTargets() == 0 && game.DwellTarget == null,
+            "game starts in the gaze mode menu without targets");
         Vector3 initialShipPosition = game.spaceship.transform.position;
         Quaternion initialShipRotation = game.spaceship.transform.rotation;
 
@@ -87,6 +75,9 @@ public static class GazeLabValidation
         input.enabled = false;
         GazeHud hud = game.GetComponent<GazeHud>();
         if (hud != null) hud.enabled = false;
+        if (input.simulateMouse) input.SetSimulation(false);
+        game.StartMode(GameController.SelectionMode.Dwell);
+        Check(!game.InMenu && game.Mode == GameController.SelectionMode.Dwell, "menu selection starts dwell mode");
         RemoveTargets();
         Camera camera = Camera.main;
         Check(camera != null && camera.pixelWidth > 0 && camera.pixelHeight > 0,
@@ -184,6 +175,104 @@ public static class GazeLabValidation
               && Quaternion.Angle(game.spaceship.transform.rotation, initialShipRotation) < 0.001f
               && shipBody.velocity == Vector2.zero && shipBody.gravityScale == 0f,
             "restart restores score, damage, ship and two fresh targets");
+
+        CheckSelectionModes(game, input, camera);
+        CheckNodDetector();
+    }
+
+    static void CheckSelectionModes(GameController game, GazeInput input, Camera camera)
+    {
+        // Blink mode: aiming alone never fires; short (natural) blinks are ignored.
+        game.StartMode(GameController.SelectionMode.Blink);
+        RemoveTargets();
+        Collider2D rock = SpawnFixture(game.spacerock, new Vector2(2f, 0f));
+        InjectGaze(input, camera, new Vector2(2f, 0f), true);
+        SetField(game, "dwellElapsed", game.DwellSeconds * 2f);
+        Invoke(game, "LateUpdate");
+        Check(game.DwellTarget == rock && game.points == 0 && rock.enabled,
+            "blink mode: long aiming alone does not fire");
+        SetProperty(input, "BlinkEnded", true);
+        SetProperty(input, "LastBlinkSeconds", 0.12f);
+        Invoke(game, "LateUpdate");
+        Check(game.points == 0 && rock.enabled && game.LastConfirmText.Contains("too short"),
+            "blink mode: natural short blink is ignored");
+        SetProperty(input, "LastBlinkSeconds", 2.5f);
+        Invoke(game, "LateUpdate");
+        Check(game.points == 0 && rock.enabled && game.LastConfirmText.Contains("too long"),
+            "blink mode: very long eye closure is ignored");
+        SetProperty(input, "LastBlinkSeconds", 0.5f);
+        Invoke(game, "LateUpdate");
+        SetProperty(input, "BlinkEnded", false);
+        Check(game.points == 20 && !rock.enabled && BeamIsVisible(game),
+            "blink mode: deliberate blink fires at the locked target");
+
+        SetProperty(input, "HasValidGaze", false);
+        SetProperty(input, "EyesClosedCandidate", true);
+        SetProperty(input, "EyesClosedSeconds", 0.5f);
+        Check(!game.IsPaused, "blink mode: closing the eyes briefly does not pause the game");
+        SetProperty(input, "EyesClosedSeconds", game.BlinkMaxSeconds + 1f);
+        Check(game.IsPaused, "blink mode: eyes closed too long pauses the game");
+        SetProperty(input, "EyesClosedCandidate", false);
+        SetProperty(input, "EyesClosedSeconds", 0f);
+
+        // Nod mode.
+        game.StartMode(GameController.SelectionMode.Nod);
+        RemoveTargets();
+        InjectGaze(input, camera, new Vector2(2f, 0f), true);
+        SetProperty(input, "NodDetected", true);
+        Invoke(game, "LateUpdate");
+        Check(game.points == 0 && game.LastConfirmText.Contains("no target"),
+            "nod mode: nod without a locked target does not fire");
+        SetProperty(input, "NodDetected", false);
+        rock = SpawnFixture(game.spacerock, new Vector2(2f, 0f));
+        Invoke(game, "LateUpdate");
+        Check(game.DwellTarget == rock && game.points == 0, "nod mode: aiming locks without firing");
+        SetProperty(input, "NodDetected", true);
+        Invoke(game, "LateUpdate");
+        SetProperty(input, "NodDetected", false);
+        Check(game.points == 20 && !rock.enabled, "nod mode: nod fires at the locked target");
+
+        // Menu.
+        game.ShowMenu();
+        Check(game.InMenu && CountTargets() == 0 && !game.IsPaused, "menu removes targets and stops the round");
+        rock = SpawnFixture(game.spacerock, new Vector2(2f, 0f));
+        // The menu buttons cover this spot, so gaze is injected without the HUD-free check.
+        SetProperty(input, "ScreenPoint", (Vector2)camera.WorldToScreenPoint(new Vector3(2f, 0f, 0f)));
+        SetProperty(input, "HasValidGaze", true);
+        SetField(game, "dwellElapsed", game.DwellSeconds * 2f);
+        int scoreInMenu = game.points;
+        Invoke(game, "LateUpdate");
+        Check(game.points == scoreInMenu && rock.enabled && game.DwellTarget == null, "menu never fires at targets");
+        RemoveTargets();
+    }
+
+    static void CheckNodDetector()
+    {
+        var detector = new HeadNodDetector();
+        const float dt = 1f / 60f;
+        float t = 0f;
+        int nods = 0;
+        // Rest, quick nod down and back (0.4 s), rest.
+        for (int i = 0; i < 60; i++, t += dt) if (detector.Update(0f, 0f, t, dt)) nods++;
+        for (int i = 0; i < 24; i++, t += dt)
+            if (detector.Update(15f * Mathf.Sin(Mathf.PI * i / 24f), 0f, t, dt)) nods++;
+        for (int i = 0; i < 60; i++, t += dt) if (detector.Update(0f, 0f, t, dt)) nods++;
+        Check(nods == 1, "head nod detector: one quick nod is detected exactly once");
+
+        detector.Reset();
+        nods = 0;
+        // Slow posture change: tilt 20 degrees over 3 s and stay there.
+        for (int i = 0; i < 180; i++, t += dt) if (detector.Update(20f * i / 180f, 0f, t, dt)) nods++;
+        for (int i = 0; i < 60; i++, t += dt) if (detector.Update(20f, 0f, t, dt)) nods++;
+        Check(nods == 0, "head nod detector: slow posture change is not a nod");
+
+        detector.Reset();
+        nods = 0;
+        // Head shake: large yaw with small pitch.
+        for (int i = 0; i < 60; i++, t += dt) if (detector.Update(0f, 0f, t, dt)) nods++;
+        for (int i = 0; i < 48; i++, t += dt)
+            if (detector.Update(4f * Mathf.Sin(Mathf.PI * i / 24f), 25f * Mathf.Sin(Mathf.PI * i / 24f), t, dt)) nods++;
+        Check(nods == 0, "head nod detector: head shake is not a nod");
     }
 
     static void InjectGaze(GazeInput input, Camera camera, Vector2 worldPoint, bool valid)
@@ -243,7 +332,6 @@ public static class GazeLabValidation
     static void Finish(Exception exception)
     {
         SessionState.SetBool(ActiveKey, false);
-        SessionState.SetBool(LiveTalonKey, false);
         EditorApplication.update -= Tick;
         if (exception == null) Debug.Log("GAZELAB_TEST_PASS: " + checks + " checks; injected gaze only, no hardware validation.");
         else Debug.LogError("GAZELAB_TEST_FAIL: " + exception);

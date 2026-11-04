@@ -1,22 +1,21 @@
-// Student: Jan Biernacki | Matriculation number: TO BE PROVIDED
+// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
 using UnityEngine;
-#if GAZELAB_TOBII && (UNITY_EDITOR_WIN || (UNITY_STANDALONE_WIN && !UNITY_EDITOR))
+#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
 using Tobii.Gaming;
 #endif
 
-/// <summary>Real gaze is the default; simulation is explicitly selected and labelled.</summary>
+/// <summary>
+/// Gaze input from the Tobii 4C (Tobii Unity SDK) or a clearly labelled mouse simulation,
+/// plus the two non-gaze confirmation signals used by the shooting modes: deliberate
+/// blinks and head nods.
+/// </summary>
 public class GazeInput : MonoBehaviour
 {
-    public enum GazeSource { TobiiSdk, Talon }
-#if UNITY_EDITOR_OSX || (UNITY_STANDALONE_OSX && !UNITY_EDITOR)
-    public GazeSource source = GazeSource.Talon;
-#else
-    public GazeSource source = GazeSource.TobiiSdk;
-#endif
-    public bool simulateMouse;
-    TalonGazeReceiver talon;
-    int lastInputMode = -1;
-    public bool IsTestData { get { return !simulateMouse && source == GazeSource.Talon && talon != null && talon.IsTestData; } }
+    // The Tobii native library can crash the Unity Editor when no tracker/runtime is present.
+    // It is therefore only loaded after the player explicitly selects "Tobii eye tracker".
+    public bool simulateMouse = true;
+    /// <summary>Set by the GameController while the head-nod shooting mode is active.</summary>
+    public bool trackHeadPose;
     [Range(0.02f, 0.5f)] public float maximumSampleAge = 0.1f;
     public bool HasValidGaze { get; private set; }
     public Vector2 ScreenPoint { get; private set; }
@@ -24,35 +23,39 @@ public class GazeInput : MonoBehaviour
     public bool IsSimulation { get { return simulateMouse; } }
     public bool IsOverControls { get { return GazeHud.ControlsContain(ScreenPoint); } }
 
+    // Blink signal: the tracker is working but currently sees no gaze (eyes closed).
+    public bool EyesClosedCandidate { get; private set; }
+    public float EyesClosedSeconds { get; private set; }
+    /// <summary>True for exactly one frame when the eyes reopen after a closed period.</summary>
+    public bool BlinkEnded { get; private set; }
+    public float LastBlinkSeconds { get; private set; }
+    bool eyesClosed;
+    float closedSince;
+
+    // Head-nod signal.
+    readonly HeadNodDetector nod = new HeadNodDetector();
+    /// <summary>True for exactly one frame when a head nod completes.</summary>
+    public bool NodDetected { get; private set; }
+    public bool HeadPoseAvailable { get; private set; }
+    public string HeadStatus { get; private set; }
+
+    bool lastSimulation;
+
     void Awake()
     {
         StatusText = "Waiting for gaze";
-        talon = GetComponent<TalonGazeReceiver>();
-        if (talon == null) talon = gameObject.AddComponent<TalonGazeReceiver>();
-        talon.enabled = source == GazeSource.Talon && !simulateMouse;
+        HeadStatus = "";
+        lastSimulation = simulateMouse;
         if (GetComponent<GazeHud>() == null) gameObject.AddComponent<GazeHud>();
     }
 
+    /// <summary>true: mouse simulation, false: Tobii eye tracker. Cancels any pending selection.</summary>
     public void SetSimulation(bool enabled)
     {
         simulateMouse = enabled;
         HasValidGaze = false;
+        ResetSignals();
         CancelSelection();
-        if (talon != null) talon.enabled = !enabled && source == GazeSource.Talon;
-    }
-
-    public void SelectSource(GazeSource selected)
-    {
-        source = selected;
-        simulateMouse = false;
-        HasValidGaze = false;
-        CancelSelection();
-        if (talon != null) talon.enabled = selected == GazeSource.Talon;
-    }
-
-    public void SetTalonViewportBounds(Vector2 topLeft, Vector2 bottomRight)
-    {
-        if (talon != null) talon.SetViewportBounds(topLeft, bottomRight);
     }
 
     void CancelSelection()
@@ -61,69 +64,159 @@ public class GazeInput : MonoBehaviour
         if (game != null) game.CancelSelection();
     }
 
+    void ResetSignals()
+    {
+        eyesClosed = false;
+        EyesClosedCandidate = false;
+        EyesClosedSeconds = 0f;
+        BlinkEnded = false;
+        NodDetected = false;
+        nod.Reset();
+    }
+
     void Update()
     {
+        BlinkEnded = false;
+        NodDetected = false;
+        if (simulateMouse != lastSimulation) { CancelSelection(); ResetSignals(); lastSimulation = simulateMouse; }
+        bool closedCandidate = ReadGaze();
+        UpdateBlink(closedCandidate);
+        UpdateHeadPose();
+    }
+
+    /// <summary>Reads the active gaze source. Returns true when the tracker works but sees no eyes.</summary>
+    bool ReadGaze()
+    {
         HasValidGaze = false;
-        int mode = simulateMouse ? 2 : (int)source;
-        if (mode != lastInputMode) { CancelSelection(); lastInputMode = mode; }
-        if (talon != null)
-        {
-            talon.maximumSampleAge = maximumSampleAge;
-            talon.enabled = !simulateMouse && source == GazeSource.Talon;
-        }
         if (!Application.isFocused)
         {
             StatusText = "Game window inactive - paused";
-            return;
+            return false;
         }
         if (simulateMouse)
         {
             ScreenPoint = Input.mousePosition;
+            if (Input.GetKey(KeyCode.B))
+            {
+                StatusText = "MOUSE SIMULATION - eyes closed (B held)";
+                return true;
+            }
             HasValidGaze = InBounds(ScreenPoint);
             StatusText = HasValidGaze ? "MOUSE SIMULATION - no eye tracker" : "Move pointer into the game";
-            return;
+            return false;
         }
-        if (source == GazeSource.Talon)
+#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+        string notReady;
+        if (!TobiiReady(out notReady))
         {
-            Vector2 point = Vector2.zero;
-            HasValidGaze = talon != null && talon.TryGetScreenPoint(out point);
-            if (HasValidGaze) ScreenPoint = point;
-            StatusText = talon == null ? "Talon receiver unavailable" : talon.StatusText;
-            return;
-        }
-#if GAZELAB_TOBII && (UNITY_EDITOR_WIN || (UNITY_STANDALONE_WIN && !UNITY_EDITOR))
-#if UNITY_EDITOR_WIN
-        if (UnityEditor.EditorUserBuildSettings.activeBuildTarget != UnityEditor.BuildTarget.StandaloneWindows64 &&
-            UnityEditor.EditorUserBuildSettings.activeBuildTarget != UnityEditor.BuildTarget.StandaloneWindows)
-        {
-            StatusText = "Select Windows in File > Build Settings - paused";
-            return;
-        }
-#endif
-        if (!Tobii.Gaming.Internal.TobiiEulaFile.IsEulaAccepted())
-        {
-            StatusText = "Accept the Tobii SDK license in Unity - paused";
-            return;
-        }
-        if (!TobiiAPI.IsConnected)
-        {
-            StatusText = "Tobii disconnected - paused";
-            return;
+            StatusText = notReady;
+            return false;
         }
         var sample = TobiiAPI.GetGazePoint();
         float age = Time.unscaledTime - sample.Timestamp;
         if (!sample.IsValid || age < 0f || age > maximumSampleAge)
         {
-            StatusText = "Gaze lost or stale - paused";
-            return;
+            StatusText = "Gaze lost or stale (eyes closed?) - paused";
+            return true; // tracker connected, but no current gaze: candidate for a blink
         }
         ScreenPoint = sample.Screen; // Already Unity bottom-left coordinates. Do not invert Y.
         HasValidGaze = InBounds(ScreenPoint);
         StatusText = HasValidGaze ? "Tobii gaze active" : "Gaze outside game - paused";
-#elif GAZELAB_TOBII
-        StatusText = "Tobii 4C requires the Windows lab PC - paused";
+        return false;
 #else
-        StatusText = "Import course SDK, then Tools > Gaze Lab > Enable Tobii SDK";
+        StatusText = "The Tobii 4C requires Windows - paused";
+        return false;
+#endif
+    }
+
+#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+    static bool TobiiReady(out string status)
+    {
+        status = null;
+#if UNITY_EDITOR_WIN
+        if (UnityEditor.EditorUserBuildSettings.activeBuildTarget != UnityEditor.BuildTarget.StandaloneWindows64 &&
+            UnityEditor.EditorUserBuildSettings.activeBuildTarget != UnityEditor.BuildTarget.StandaloneWindows)
+        {
+            status = "Select Windows in File > Build Settings - paused";
+            return false;
+        }
+#endif
+        if (!Tobii.Gaming.Internal.TobiiEulaFile.IsEulaAccepted())
+        {
+            status = "Accept the Tobii SDK license in Unity - paused";
+            return false;
+        }
+        if (!TobiiAPI.IsConnected)
+        {
+            status = "Tobii disconnected - paused";
+            return false;
+        }
+        return true;
+    }
+#endif
+
+    void UpdateBlink(bool closedCandidate)
+    {
+        float now = Time.unscaledTime;
+        if (closedCandidate && !HasValidGaze)
+        {
+            if (!eyesClosed) { eyesClosed = true; closedSince = now; }
+            EyesClosedCandidate = true;
+            EyesClosedSeconds = now - closedSince;
+            return;
+        }
+        // Only a return to valid gaze ends a blink; tracker loss or focus loss discards it.
+        if (eyesClosed && HasValidGaze)
+        {
+            BlinkEnded = true;
+            LastBlinkSeconds = now - closedSince;
+        }
+        eyesClosed = false;
+        EyesClosedCandidate = false;
+        EyesClosedSeconds = 0f;
+    }
+
+    void UpdateHeadPose()
+    {
+        if (!trackHeadPose)
+        {
+            nod.Reset();
+            HeadPoseAvailable = false;
+            HeadStatus = "";
+            return;
+        }
+        if (simulateMouse)
+        {
+            HeadPoseAvailable = true;
+            HeadStatus = "Simulation: press N to nod";
+            if (Application.isFocused && Input.GetKeyDown(KeyCode.N)) NodDetected = true;
+            return;
+        }
+#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+        string notReady;
+        if (!TobiiReady(out notReady))
+        {
+            nod.Reset();
+            HeadPoseAvailable = false;
+            HeadStatus = "Head pose unavailable";
+            return;
+        }
+        HeadPose pose = TobiiAPI.GetHeadPose();
+        float age = Time.unscaledTime - pose.Timestamp;
+        if (!pose.IsValid || age < 0f || age > 0.25f)
+        {
+            nod.Reset();
+            HeadPoseAvailable = false;
+            HeadStatus = "Head pose not detected";
+            return;
+        }
+        Vector3 euler = pose.Rotation.eulerAngles;
+        NodDetected = nod.Update(euler.x, euler.y, Time.unscaledTime, Time.unscaledDeltaTime);
+        HeadPoseAvailable = true;
+        HeadStatus = "Head pitch " + nod.PitchDeviation.ToString("+0;-0") + " deg";
+#else
+        HeadPoseAvailable = false;
+        HeadStatus = "Head pose needs the Tobii 4C on Windows";
 #endif
     }
 

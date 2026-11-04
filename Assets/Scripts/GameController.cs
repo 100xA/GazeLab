@@ -1,19 +1,42 @@
-// Author: Jan Biernacki. Matriculation number: TO BE PROVIDED.
+// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
 using UnityEngine;
 
 public class GameController : MonoBehaviour
 {
+    /// <summary>How an aimed target is confirmed (Midas-touch solutions).</summary>
+    public enum SelectionMode { Dwell, Blink, Nod, Button }
+
     // Existing serialized scene references are preserved.
     public GameObject laserbeam, lasercannon, spacerock, satellite, spaceship;
     public int SpawnIntervalSeconds = 4;
     public float DwellSeconds = 0.6f;
+    [Tooltip("Shortest eye closure that counts as a deliberate blink (natural blinks are shorter).")]
+    public float BlinkMinSeconds = 0.3f;
+    [Tooltip("Longest eye closure that still counts as a blink; longer closures pause the game.")]
+    public float BlinkMaxSeconds = 1.5f;
+    [Tooltip("How long a target stays locked after the gaze left it (blink, nod or button).")]
+    public float LockGraceSeconds = 0.35f;
     public int points, damage;
+    public SelectionMode Mode = SelectionMode.Dwell;
+    public bool InMenu { get; private set; }
     public float DwellProgress { get; private set; }
+    /// <summary>The target currently under gaze with a clear line of fire.</summary>
     public Collider2D DwellTarget { get; private set; }
     public bool GameOver { get; private set; }
     public bool IsLineOfFireClear { get; private set; }
     public float LastShotTime { get; private set; }
-    public bool IsPaused { get { return !GameOver && (input == null || !input.HasValidGaze); } }
+    /// <summary>Feedback about the last confirmation attempt (shown in the HUD).</summary>
+    public string LastConfirmText { get; private set; }
+    public float LastConfirmTime { get; private set; }
+    public bool IsPaused
+    {
+        get { return !GameOver && !InMenu && (input == null || (!input.HasValidGaze && !InBlinkGrace)); }
+    }
+    /// <summary>Blink mode: closing the eyes briefly must not pause the game.</summary>
+    public bool InBlinkGrace
+    {
+        get { return Mode == SelectionMode.Blink && input != null && input.EyesClosedCandidate && input.EyesClosedSeconds <= BlinkMaxSeconds; }
+    }
 
     private Camera cam;
     private GazeInput input;
@@ -24,12 +47,18 @@ public class GameController : MonoBehaviour
     private Quaternion shipStartRotation;
     private Rigidbody2D shipBody;
     private Collider2D[] shipColliders;
+    // Last aimed target, kept briefly so a blink/nod/button press can confirm it.
+    private Collider2D lockedTarget;
+    private Vector2 lockedOffset;
+    private float lockedTime = float.NegativeInfinity;
 
     private void Awake()
     {
         cam = Camera.main;
         input = GetComponent<GazeInput>();
         if (input == null) input = gameObject.AddComponent<GazeInput>();
+        LastConfirmText = "";
+        LastConfirmTime = float.NegativeInfinity;
         if (laserbeam != null)
         {
             beam = laserbeam.GetComponent<LineRenderer>();
@@ -51,12 +80,13 @@ public class GameController : MonoBehaviour
         }
     }
 
-    private void Start() { BeginRound(); }
+    private void Start() { ShowMenu(); }
 
     private void Update()
     {
         if (beam != null && beam.enabled && Time.time - LastShotTime >= 0.15f) beam.enabled = false;
-        if (GameOver) return;
+        if (input != null) input.trackHeadPose = !InMenu && !GameOver && Mode == SelectionMode.Nod;
+        if (GameOver || InMenu) return;
         if (damage >= 4) { EndGame(); return; }
         if (IsPaused) return;
         spawnElapsed += Time.deltaTime;
@@ -71,7 +101,14 @@ public class GameController : MonoBehaviour
     // Consume the fresh Update gaze sample after target movement.
     private void LateUpdate()
     {
-        if (GameOver || IsPaused || input.IsOverControls || cam == null || lasercannon == null)
+        if (GameOver || InMenu) { ResetDwell(); ClearLock(); return; }
+
+        // 1) Explicit confirmation (blink / nod / button) acts on the target locked in earlier frames.
+        string confirmation;
+        if (Mode != SelectionMode.Dwell && ConfirmationRequested(out confirmation)) FireLockedTarget(confirmation);
+
+        // 2) Update what the player is aiming at with the current gaze sample.
+        if (IsPaused || input == null || !input.HasValidGaze || input.IsOverControls || cam == null || lasercannon == null)
         { ResetDwell(); return; }
         Vector2 screen = input.ScreenPoint;
         if (!cam.pixelRect.Contains(screen)) { ResetDwell(); return; }
@@ -84,6 +121,11 @@ public class GameController : MonoBehaviour
         IsLineOfFireClear = true;
         if (DwellTarget != candidate) { DwellTarget = candidate; dwellElapsed = 0f; }
         else dwellElapsed += Time.deltaTime;
+        lockedTarget = candidate;
+        lockedOffset = (Vector2)world - (Vector2)candidate.transform.position;
+        lockedTime = Time.unscaledTime;
+
+        if (Mode != SelectionMode.Dwell) { DwellProgress = 0f; return; }
         DwellProgress = Mathf.Clamp01(dwellElapsed / Mathf.Max(0.1f, DwellSeconds));
         if (DwellProgress >= 1f)
         {
@@ -91,6 +133,71 @@ public class GameController : MonoBehaviour
             if (FirstHitIsTarget(world, candidate, out hit)) FirePhaserBeam(candidate, hit.point);
             ResetDwell();
         }
+    }
+
+    private bool ConfirmationRequested(out string description)
+    {
+        description = null;
+        switch (Mode)
+        {
+            case SelectionMode.Blink:
+                if (!input.BlinkEnded) return false;
+                float closed = input.LastBlinkSeconds;
+                if (closed < BlinkMinSeconds)
+                {
+                    // Natural blinks are ignored: this is the Midas-touch protection of this mode.
+                    Feedback("Blink " + closed.ToString("0.00") + " s - too short, ignored");
+                    return false;
+                }
+                if (closed > BlinkMaxSeconds)
+                {
+                    Feedback("Eyes closed " + closed.ToString("0.0") + " s - too long, ignored");
+                    return false;
+                }
+                description = "Blink " + closed.ToString("0.00") + " s";
+                return true;
+            case SelectionMode.Nod:
+                if (!input.NodDetected) return false;
+                description = "Nod";
+                return true;
+            case SelectionMode.Button:
+                if (!Application.isFocused) return false;
+                if (Input.GetKeyDown(KeyCode.Space)) { description = "Space"; return true; }
+                if (Input.GetMouseButtonDown(0) && !GazeHud.ControlsContain(Input.mousePosition))
+                { description = "Click"; return true; }
+                return false;
+            default:
+                return false;
+        }
+    }
+
+    private void FireLockedTarget(string confirmation)
+    {
+        float grace = LockGraceSeconds + (Mode == SelectionMode.Blink ? input.LastBlinkSeconds : 0f);
+        Collider2D target = lockedTarget != null && Time.unscaledTime - lockedTime <= grace ? lockedTarget : null;
+        if (target == null || !IsTarget(target))
+        {
+            Feedback(confirmation + " - no target locked");
+            return;
+        }
+        // Targets keep moving during a blink or nod, so aim at the same spot on the target.
+        Vector2 aim = (Vector2)target.transform.position + lockedOffset;
+        Physics2D.SyncTransforms();
+        RaycastHit2D hit;
+        if (FirstHitIsTarget(aim, target, out hit))
+        {
+            FirePhaserBeam(target, hit.point);
+            Feedback(confirmation + " - fired");
+        }
+        else Feedback(confirmation + " - line of fire blocked");
+        ResetDwell();
+        ClearLock();
+    }
+
+    private void Feedback(string text)
+    {
+        LastConfirmText = text;
+        LastConfirmTime = Time.unscaledTime;
     }
 
     private Collider2D FindFrontmostTarget(Vector2 world)
@@ -157,7 +264,7 @@ public class GameController : MonoBehaviour
         Destroy(target.gameObject);
     }
 
-    public void CancelSelection() { ResetDwell(); }
+    public void CancelSelection() { ResetDwell(); ClearLock(); }
 
     private void ResetDwell()
     {
@@ -165,6 +272,12 @@ public class GameController : MonoBehaviour
         dwellElapsed = 0f;
         DwellProgress = 0f;
         IsLineOfFireClear = false;
+    }
+
+    private void ClearLock()
+    {
+        lockedTarget = null;
+        lockedTime = float.NegativeInfinity;
     }
 
     private void SpawnRock(float y)
@@ -204,20 +317,14 @@ public class GameController : MonoBehaviour
         GameOver = true;
         damage = 4;
         ResetDwell();
+        ClearLock();
         if (beam != null) beam.enabled = false;
         if (shipColliders != null) foreach (Collider2D collider in shipColliders) collider.enabled = false;
         if (shipBody != null) { shipBody.constraints = RigidbodyConstraints2D.None; shipBody.gravityScale = 1f; }
     }
 
-    private void BeginRound()
+    private void ResetShip()
     {
-        points = 0;
-        damage = 0;
-        spawnElapsed = 0f;
-        spawnSequence = 0;
-        LastShotTime = float.NegativeInfinity;
-        GameOver = false;
-        ResetDwell();
         if (spaceship != null) { spaceship.transform.position = shipStartPosition; spaceship.transform.rotation = shipStartRotation; }
         if (shipBody != null)
         {
@@ -227,17 +334,69 @@ public class GameController : MonoBehaviour
             shipBody.constraints = RigidbodyConstraints2D.FreezeAll;
         }
         if (shipColliders != null) foreach (Collider2D collider in shipColliders) collider.enabled = true;
+    }
+
+    private void BeginRound()
+    {
+        points = 0;
+        damage = 0;
+        spawnElapsed = 0f;
+        spawnSequence = 0;
+        LastShotTime = float.NegativeInfinity;
+        LastConfirmText = "";
+        GameOver = false;
+        InMenu = false;
+        ResetDwell();
+        ClearLock();
+        ResetShip();
         if (beam != null) beam.enabled = false;
         SpawnRock(2.4f);
         SpawnSatellite(-2.4f);
     }
 
-    public void RestartGame()
+    private static void RemoveTargets()
     {
         foreach (RockController rock in FindObjectsOfType<RockController>())
         { rock.gameObject.SetActive(false); Destroy(rock.gameObject); }
         foreach (SatelliteController satelliteObject in FindObjectsOfType<SatelliteController>())
         { satelliteObject.gameObject.SetActive(false); Destroy(satelliteObject.gameObject); }
+    }
+
+    /// <summary>Starts a fresh round with the chosen shooting mode (selected by gaze in the menu).</summary>
+    public void StartMode(SelectionMode mode)
+    {
+        Mode = mode;
+        RestartGame();
+    }
+
+    /// <summary>Restarts with the current shooting mode.</summary>
+    public void RestartGame()
+    {
+        RemoveTargets();
         BeginRound();
+    }
+
+    /// <summary>Shows the gaze-operated mode menu; no targets exist and nothing can be fired.</summary>
+    public void ShowMenu()
+    {
+        RemoveTargets();
+        InMenu = true;
+        GameOver = false;
+        damage = 0;
+        ResetDwell();
+        ClearLock();
+        ResetShip();
+        if (beam != null) beam.enabled = false;
+    }
+
+    public static string ModeName(SelectionMode mode)
+    {
+        switch (mode)
+        {
+            case SelectionMode.Blink: return "Aim + Blink";
+            case SelectionMode.Nod: return "Aim + Nod";
+            case SelectionMode.Button: return "Aim + Space / Click";
+            default: return "Aim + Hold (Dwell)";
+        }
     }
 }

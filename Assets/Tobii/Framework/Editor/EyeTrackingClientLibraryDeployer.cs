@@ -91,9 +91,8 @@ public class EyeTrackingClientLibraryDeployer
 
     private static bool IsActivePlatformLinux()
     {
-        return EditorUserBuildSettings.activeBuildTarget == BuildTarget.StandaloneLinux ||
-               EditorUserBuildSettings.activeBuildTarget == BuildTarget.StandaloneLinux64 ||
-               EditorUserBuildSettings.activeBuildTarget == BuildTarget.StandaloneLinuxUniversal;
+        // GazeLab: the old Linux targets no longer exist since Unity 2019.2; only StandaloneLinux64 is real.
+        return EditorUserBuildSettings.activeBuildTarget == BuildTarget.StandaloneLinux64;
     }
 
     private static bool IsActivePlatformOsx()

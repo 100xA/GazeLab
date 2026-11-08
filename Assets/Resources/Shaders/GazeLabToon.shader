@@ -1,7 +1,4 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
-// Cartoon shading for the procedural 3D models (see ToonModels.cs): vertex colours, three light
-// bands, a hard highlight, a teal rim light, glowing parts and a dark outline like the HUD ink.
-// Independent of scene lights: the light direction is a material property.
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 Shader "GazeLab/Toon"
 {
     Properties
@@ -24,9 +21,6 @@ Shader "GazeLab/Toon"
 
         float _DepthSquash;
 
-        // 2D game with an orthographic camera: each model is flattened towards the z plane of its
-        // pivot, so the z position of a target alone decides which one is drawn in front (newer
-        // targets spawn closer to the camera). The normals keep the full 3D shape for the shading.
         float4 SquashedClipPos(float3 worldPos)
         {
             float pivotZ = unity_ObjectToWorld._m23;
@@ -35,7 +29,6 @@ Shader "GazeLab/Toon"
         }
         ENDCG
 
-        // Shaded surface
         Pass
         {
             CGPROGRAM
@@ -77,27 +70,23 @@ Shader "GazeLab/Toon"
             {
                 float3 n = normalize(i.normal);
                 float3 l = normalize(_LightDir.xyz);
-                float3 v = normalize(UNITY_MATRIX_V[2].xyz); // towards the (orthographic) camera
+                float3 v = normalize(UNITY_MATRIX_V[2].xyz);
                 float ndl = dot(n, l);
 
-                // Three tones: core shadow, mid tone, lit.
                 float tone = 0.55 * smoothstep(-0.14, -0.06, ndl) + 0.45 * smoothstep(0.42, 0.5, ndl);
                 float3 albedo = i.color.rgb;
                 float3 color = albedo * lerp(_ShadowColor.rgb, 1.0, tone);
 
-                // Vertex alpha scales the highlight (matte rock, shiny metal).
                 float highlight = smoothstep(0.93, 0.95, dot(n, normalize(l + v))) * i.color.a;
                 float rim = smoothstep(0.68, 0.78, 1.0 - saturate(dot(n, v)));
                 color += highlight * _Gloss + rim * _RimColor.rgb * _RimColor.a;
 
-                // Engine flames and lights ignore the lighting.
                 color = lerp(color, albedo * 1.2 + 0.1, saturate(i.glow));
                 return fixed4(color, 1);
             }
             ENDCG
         }
 
-        // Outline: back faces pushed out along the smoothed normals (stored in uv2).
         Pass
         {
             Cull Front

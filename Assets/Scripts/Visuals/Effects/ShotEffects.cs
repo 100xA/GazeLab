@@ -1,12 +1,8 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>
-    /// Cartoon effects of a shot: muzzle flash at the cannon and an explosion of fire puffs and
-    /// tumbling fragments where a target was destroyed. Purely visual (no colliders).
-    /// </summary>
     public static class ShotEffects
     {
         public static void MuzzleFlash(Vector2 muzzle)
@@ -16,10 +12,9 @@ namespace GazeLab
             Puff(at + new Vector3(0f, 0f, -0.05f), PuffColor.White, 0.28f, 0.14f, 0f, Vector3.zero);
         }
 
-        /// <summary>Explosion of a destroyed target: fire puffs and rock chunks or satellite parts.</summary>
         public static void Explode(Vector3 centre, float radius, TargetKind kind)
         {
-            centre.z -= 0.3f; // in front of the other targets in this depth layer
+            centre.z -= 0.3f;
             Puff(centre, PuffColor.White, radius * 0.8f, 0.2f, 0f, Vector3.zero);
             Puff(centre + new Vector3(0f, 0f, 0.05f), PuffColor.Orange, radius * 1.05f, 0.5f, 0f, Vector3.zero);
             PuffColor[] colors = { PuffColor.Yellow, PuffColor.Orange, PuffColor.Red };
@@ -61,7 +56,7 @@ namespace GazeLab
         {
             var root = new GameObject("Shot effect");
             root.transform.SetPositionAndRotation(position, Random.rotation);
-            root.transform.localScale = Vector3.zero; // EffectPiece sizes it from the next frame on
+            root.transform.localScale = Vector3.zero;
             ToonModels.Attach(root.transform, mesh);
             return root.AddComponent<EffectPiece>();
         }

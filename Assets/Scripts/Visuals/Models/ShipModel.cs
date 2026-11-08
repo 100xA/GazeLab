@@ -1,12 +1,8 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>
-    /// The player's ship (about 2.4 wide, nose at +1.5, nozzles at -1.32): red hull with yellow
-    /// stripes, teal cockpit dome, swept blue-green wings with lights, two engines.
-    /// </summary>
     static class ShipModel
     {
         const float NozzleY = -1.32f;
@@ -24,7 +20,6 @@ namespace GazeLab
             return b.Build("GazeLab Ship");
         }
 
-        /// <summary>Flames of both engines, relative to <see cref="FlamesPivot"/>.</summary>
         public static Mesh BuildFlames()
         {
             var b = new ToonMeshBuilder();
@@ -38,7 +33,6 @@ namespace GazeLab
             return b.Build("GazeLab Flames");
         }
 
-        // Red with two yellow stripes facing the camera, a dark tail skirt and a yellow collar.
         static void Hull(ToonMeshBuilder b)
         {
             b.Part(Vector3.zero).Style(HudTheme.ShipRed);
@@ -71,11 +65,10 @@ namespace GazeLab
                 b.Part(new Vector3(side * EngineX, 0f, 0f)).Style(ModelPalette.DarkMetal);
                 b.Frustum(12, NozzleY, 0.22f, -0.92f, 0.16f);
                 b.Style(ModelPalette.Flame, 1f);
-                b.Frustum(12, NozzleY - 0.02f, 0.16f, NozzleY + 0.01f, 0.16f); // glowing nozzle
+                b.Frustum(12, NozzleY - 0.02f, 0.16f, NozzleY + 0.01f, 0.16f);
             }
         }
 
-        // Swept back and tilted away from the camera; blue with a green edge, three lights and a rod.
         static void Wing(ToonMeshBuilder b, float side)
         {
             Vector2[] inner = { new Vector2(0f, 0.2f), new Vector2(0.6f, -0.36f), new Vector2(0.6f, -1.36f), new Vector2(0f, -1f) };

@@ -1,13 +1,10 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>Creates rocks and satellites at the right edge and removes them between rounds.</summary>
     public sealed class TargetSpawner
     {
-        // Newer targets spawn closer to the camera, so they are drawn (and selected) in front.
-        // The z layers repeat; targets live far shorter than one cycle of spawns.
         const int DepthLayers = 20;
         const float DepthStep = 0.1f;
 
@@ -51,7 +48,6 @@ namespace GazeLab
             float z = -(++spawnCount % DepthLayers) * DepthStep;
             spawned.transform.position = new Vector3(settings.spawnX, y, z);
 
-            // Targets are moved by script; physics must not let them coast while the game is paused.
             Rigidbody2D body = spawned.GetComponent<Rigidbody2D>();
             if (body != null)
             {

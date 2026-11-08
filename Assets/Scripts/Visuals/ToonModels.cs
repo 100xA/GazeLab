@@ -1,18 +1,11 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using UnityEngine;
 using UnityEngine.Rendering;
 
 namespace GazeLab
 {
-    /// <summary>Colours of the explosion puffs.</summary>
     public enum PuffColor { White, Yellow, Orange, Red }
 
-    /// <summary>
-    /// Entry point for the 3D models: builds each mesh once (see the classes in Visuals/Models),
-    /// shares it between all objects and attaches it with the cartoon material
-    /// (Resources/Shaders/GazeLabToon.shader).
-    /// Model space: the ship points along +Y, the camera looks along +Z (front faces are at -Z).
-    /// </summary>
     public static class ToonModels
     {
         public const int RockVariants = 4;
@@ -45,7 +38,6 @@ namespace GazeLab
 
         public static Mesh Ship { get { return ship != null ? ship : ship = ShipModel.Build(); } }
 
-        /// <summary>Engine flames; placed at <see cref="FlamesPivot"/> so they can flicker in length.</summary>
         public static Mesh Flames { get { return flames != null ? flames : flames = ShipModel.BuildFlames(); } }
 
         public static Vector3 FlamesPivot { get { return ShipModel.FlamesPivot; } }
@@ -63,7 +55,6 @@ namespace GazeLab
                 : Cached(satelliteDebris, variant, EffectModels.SatellitePart);
         }
 
-        /// <summary>Adds a child that draws <paramref name="mesh"/>; returns its transform (for animation).</summary>
         public static Transform Attach(Transform parent, Mesh mesh, string name = "Model")
         {
             var model = new GameObject(name);

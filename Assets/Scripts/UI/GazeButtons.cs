@@ -1,27 +1,21 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>
-    /// Gaze-only buttons: looking at one for <see cref="DwellSeconds"/> activates it. Gaze slightly
-    /// outside a button still counts, and short gaze loss (blink, jitter) freezes the progress.
-    /// Pure logic; drawing happens in <see cref="MenuView"/>.
-    /// </summary>
     public sealed class GazeButtons
     {
         public struct Button
         {
-            public Rect Rect;          // GUI pixels
+            public Rect Rect;
             public string Number, Title, Body;
             public Color Accent;
             public Action Action;
         }
 
         public const float DwellSeconds = 1f;
-        /// <summary>New buttons ignore the gaze briefly, so a menu appearing under the eyes is not triggered by accident.</summary>
         const float ArmDelaySeconds = 0.6f;
         const float ToleranceDesignUnits = 40f;
         const float LossToleranceSeconds = 0.3f;
@@ -39,7 +33,7 @@ namespace GazeLab
             buttons.Clear();
             buttons.AddRange(items);
             Release();
-            armedAt = float.NaN; // armed relative to the next update
+            armedAt = float.NaN;
         }
 
         public bool Contains(Vector2 guiPoint)
@@ -48,7 +42,6 @@ namespace GazeLab
             return false;
         }
 
-        /// <summary>Advances the dwell of the button under the gaze; activates it when complete.</summary>
         public void Update(bool gazeValid, Vector2 guiPoint, float now, float deltaTime)
         {
             if (float.IsNaN(armedAt)) armedAt = now + ArmDelaySeconds;

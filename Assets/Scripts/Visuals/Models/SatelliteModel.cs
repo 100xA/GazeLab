@@ -1,12 +1,8 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>
-    /// A satellite (about 2.5 x 0.8): octagonal body with a gold band, a dish and a red warning light.
-    /// Variant 0 has two tilted panels per side, variant 1 one large panel per side.
-    /// </summary>
     static class SatelliteModel
     {
         public static Mesh Build(int variant)
@@ -40,13 +36,13 @@ namespace GazeLab
             b.Style(ModelPalette.Gold);
             b.Frustum(8, -0.13f, 0.31f, 0.13f, 0.31f, false, false, false);
             b.Style(ModelPalette.DarkMetal);
-            b.Frustum(8, 0.36f, 0.3f, 0.44f, 0.2f, false, false, true);   // bevelled top
-            b.Frustum(8, -0.44f, 0.2f, -0.36f, 0.3f, false, true, false); // bevelled bottom
+            b.Frustum(8, 0.36f, 0.3f, 0.44f, 0.2f, false, false, true);
+            b.Frustum(8, -0.44f, 0.2f, -0.36f, 0.3f, false, true, false);
             b.Style(ModelPalette.Metal);
-            b.Frustum(6, 0.44f, 0.03f, 0.53f, 0.03f);                     // dish stem
-            b.Frustum(12, 0.5f, 0.04f, 0.6f, 0.17f);                      // dish
+            b.Frustum(6, 0.44f, 0.03f, 0.53f, 0.03f);
+            b.Frustum(12, 0.5f, 0.04f, 0.6f, 0.17f);
             b.Part(new Vector3(0f, -0.48f, 0f)).Style(HudTheme.ShipRed, 0.8f);
-            b.Sphere(0.06f);                                              // warning light
+            b.Sphere(0.06f);
         }
 
         static void Arm(ToonMeshBuilder b, float side, float y)
@@ -55,7 +51,6 @@ namespace GazeLab
             b.Frustum(6, 0.25f, 0.035f, 0.62f, 0.035f);
         }
 
-        /// <summary>Dark backing plate with raised blue cells.</summary>
         static void SolarPanel(ToonMeshBuilder b, Vector3 centre, Vector3 euler, float width, float height, int columns, int rows)
         {
             const float Gap = 0.025f;

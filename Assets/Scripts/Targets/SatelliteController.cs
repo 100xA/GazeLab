@@ -1,9 +1,8 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>Satellite: must not be shot (penalty), harmless to the ship.</summary>
     public class SatelliteController : MovingTarget
     {
         float phase;
@@ -20,7 +19,6 @@ namespace GazeLab
             return ToonModels.Satellite(Random.Range(0, ToonModels.SatelliteVariants));
         }
 
-        // Rolls slowly around its long axis, so the solar panels catch the light.
         protected override void Animate(Transform model, float age)
         {
             model.localRotation = Quaternion.Euler(Mathf.Sin(phase + age * 0.9f) * 35f, Mathf.Sin(phase * 1.7f + age * 0.6f) * 12f, 0f);

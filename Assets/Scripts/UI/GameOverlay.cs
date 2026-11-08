@@ -1,15 +1,10 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>
-    /// In-game feedback: crosshair gaze marker with progress ring or lock hint, target corner
-    /// brackets, eyes-closed timer, shot feedback and HIT.
-    /// </summary>
     public sealed class GameOverlay
     {
-        /// <summary>Elements drawn below the HUD: target highlight and the eyes-closed timer.</summary>
         public void DrawBehindHud(HudTheme theme, GameController game, GazeInput gaze)
         {
             if (game.State != GameState.Playing) return;
@@ -28,7 +23,6 @@ namespace GazeLab
             string hint = game.Mode.LockHint;
             if (hint == null)
             {
-                // Dwell: dark track with the yellow progress on top.
                 GUI.color = new Color(0f, 0f, 0f, 0.35f);
                 HudTheme.Ring(point, 33 * s, 1f, 6 * s);
                 GUI.color = HudTheme.ShipYellow;
@@ -43,7 +37,6 @@ namespace GazeLab
             HudTheme.Write(pill, hint, theme.Chip, HudTheme.Ink);
         }
 
-        /// <summary>Four yellow arms with a dark outline and a gap in the middle, plus a centre dot.</summary>
         static void DrawCrosshair(HudTheme theme, Vector2 center, float s)
         {
             const float Gap = 7f, Arm = 24f;

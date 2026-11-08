@@ -1,17 +1,10 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>
-    /// Builds low-poly meshes for the GazeLab/Toon shader from simple parts (box, frustum, dome,
-    /// extruded outline, sphere). Every triangle gets its own vertices (crisp facets), a colour with
-    /// the highlight strength in alpha, a glow amount (uv1.x) and a smoothed normal for the outline
-    /// pass (uv2). Triangles are turned
-    /// outwards automatically, so mirrored parts need no special care.
-    /// </summary>
     public sealed class ToonMeshBuilder
     {
         readonly List<Vector3> positions = new List<Vector3>();
@@ -21,16 +14,11 @@ namespace GazeLab
         Matrix4x4 part = Matrix4x4.identity;
         Matrix4x4 partNormals = Matrix4x4.identity;
 
-        /// <summary>Colour of the following triangles.</summary>
         public Color Color = Color.white;
-        /// <summary>0 = shaded, 1 = glowing (flames, lights).</summary>
         public float Glow;
-        /// <summary>Strength of the specular highlight (stored in the colour alpha).</summary>
         public float Gloss = 1f;
-        /// <summary>Optional colour per triangle from its model-space centre; overrides <see cref="Color"/>.</summary>
         public Func<Vector3, Color> Paint;
 
-        /// <summary>Places the following parts (part space to model space).</summary>
         public ToonMeshBuilder Part(Vector3 position, Vector3 euler, Vector3 scale)
         {
             return Part(Matrix4x4.TRS(position, Quaternion.Euler(euler), scale));
@@ -53,8 +41,6 @@ namespace GazeLab
             return this;
         }
 
-        // ---------- parts (in part space) ----------
-
         public void Box(Vector3 size)
         {
             Vector3 h = size * 0.5f;
@@ -67,9 +53,6 @@ namespace GazeLab
             for (int f = 0; f < 6; f++) Quad(c[faces[f, 0]], c[faces[f, 1]], c[faces[f, 2]], c[faces[f, 3]], Vector3.zero);
         }
 
-        /// <summary>
-        /// Truncated cone along +Y from (y0, r0) to (y1, r1). Angle 0 of the ring faces the camera (-Z).
-        /// </summary>
         public void Frustum(int sides, float y0, float r0, float y1, float r1, bool smooth = true, bool capBottom = true, bool capTop = true)
         {
             float height = y1 - y0;
@@ -82,7 +65,6 @@ namespace GazeLab
                 Vector3 p2 = db * r1 + Vector3.up * y1, p3 = da * r1 + Vector3.up * y1;
                 if (smooth)
                 {
-                    // Cone side normal: radial direction tilted by the slope.
                     Vector3 na = (da * height + Vector3.up * (r0 - r1)).normalized;
                     Vector3 nb = (db * height + Vector3.up * (r0 - r1)).normalized;
                     if (r0 > 0f) Triangle(p0, p1, p2, inside, na, nb, nb);
@@ -98,7 +80,6 @@ namespace GazeLab
             }
         }
 
-        /// <summary>Half sphere on the XZ plane, bulging towards +Y.</summary>
         public void Dome(int sides, int rings, float radius)
         {
             for (int r = 0; r < rings; r++)
@@ -114,7 +95,6 @@ namespace GazeLab
             }
         }
 
-        /// <summary>Convex outline in the XY plane, extruded symmetrically along Z.</summary>
         public void Slab(Vector2[] outline, float thickness)
         {
             float z = thickness * 0.5f;
@@ -133,7 +113,6 @@ namespace GazeLab
             }
         }
 
-        /// <summary>Smooth low-poly sphere.</summary>
         public void Sphere(float radius, int subdivisions = 1)
         {
             List<Vector3> dirs;
@@ -152,13 +131,11 @@ namespace GazeLab
             Triangle(a, c, d, inside);
         }
 
-        /// <summary>Flat triangle, turned to face away from <paramref name="inside"/>.</summary>
         public void Triangle(Vector3 a, Vector3 b, Vector3 c, Vector3 inside)
         {
             AddTriangle(a, b, c, inside, null, null, null);
         }
 
-        /// <summary>Triangle with smooth vertex normals (part space).</summary>
         public void Triangle(Vector3 a, Vector3 b, Vector3 c, Vector3 inside, Vector3 na, Vector3 nb, Vector3 nc)
         {
             AddTriangle(a, b, c, inside, na, nb, nc);
@@ -182,7 +159,6 @@ namespace GazeLab
             }
             if (Vector3.Dot(face, centre - inside) < 0f)
             {
-                // Unity treats clockwise triangles as front faces: swap to face outwards.
                 Vector3 t = b; b = c; c = t;
                 t = normalB; normalB = normalC; normalC = t;
                 if (!na.HasValue) normalA = normalB = normalC = -face;
@@ -202,8 +178,6 @@ namespace GazeLab
             glows.Add(new Vector2(Glow, 0f));
         }
 
-        // ---------- output ----------
-
         public Mesh Build(string name)
         {
             var mesh = new Mesh { name = name };
@@ -220,7 +194,6 @@ namespace GazeLab
             return mesh;
         }
 
-        /// <summary>Normals averaged over all triangles sharing a corner, so the outline has no gaps.</summary>
         List<Vector3> OutlineNormals()
         {
             var sums = new Dictionary<Vector3Int, Vector3>();
@@ -242,9 +215,6 @@ namespace GazeLab
             return result;
         }
 
-        // ---------- geometry helpers ----------
-
-        /// <summary>Unit direction on the XZ ring; angle 0 points to the camera (-Z), positive towards +X.</summary>
         static Vector3 Ring(float angle) { return new Vector3(Mathf.Sin(angle), 0f, -Mathf.Cos(angle)); }
 
         static Vector3 Spherical(float angle, float elevation)
@@ -252,7 +222,6 @@ namespace GazeLab
             return Ring(angle) * Mathf.Cos(elevation) + Vector3.up * Mathf.Sin(elevation);
         }
 
-        /// <summary>Unit icosphere: vertex directions and triangle indices.</summary>
         public static void Icosphere(int subdivisions, out List<Vector3> dirs, out List<int> faces)
         {
             float t = (1f + Mathf.Sqrt(5f)) / 2f;

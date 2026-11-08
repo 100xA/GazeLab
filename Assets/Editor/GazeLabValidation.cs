@@ -1,4 +1,4 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using System;
 using GazeLab;
 using UnityEditor;
@@ -6,11 +6,6 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
-/// <summary>
-/// Automated Play-mode checks of the real game code with a fake gaze source and explicit time.
-/// Run: Unity.exe -projectPath &lt;project&gt; -executeMethod GazeLabValidation.Run -logFile &lt;log&gt;
-/// (Unity exits by itself with code 0 = passed, 1 = failed). No eye-tracker data is involved.
-/// </summary>
 [InitializeOnLoad]
 public static class GazeLabValidation
 {
@@ -40,7 +35,6 @@ public static class GazeLabValidation
         EditorApplication.update += Tick;
     }
 
-    // Entering Play mode reloads the scripts; SessionState carries the "active" flag across.
     static void Tick()
     {
         if (!SessionState.GetBool(ActiveKey, false)) return;
@@ -73,7 +67,6 @@ public static class GazeLabValidation
         Debug.Log("GAZELAB_CHECK_PASS: " + description);
     }
 
-    /// <summary>Gaze source whose next sample is set by the checks.</summary>
     sealed class FakeGazeSource : IGazeSource
     {
         public GazeSample Next = GazeSample.Invalid("fake: no gaze");
@@ -85,7 +78,6 @@ public static class GazeLabValidation
         public HeadReading ReadHead(float now) { return HeadReading.Simulated(NodPressed, "fake"); }
     }
 
-    /// <summary>One run of all checks against the scene's GameController.</summary>
     sealed class Session
     {
         const float Frame = 0.1f;
@@ -108,7 +100,6 @@ public static class GazeLabValidation
         public void RunAll()
         {
             Check(game.State == GameState.Menu && CountTargets() == 0, "game starts in the gaze mode menu without targets");
-            // Drive everything by hand: no frame updates, fake gaze, explicit time.
             game.enabled = false;
             gaze.enabled = false;
             hud.enabled = false;
@@ -174,7 +165,7 @@ public static class GazeLabValidation
             Frames(1);
             Check(game.Targeting.AimTarget == rock, "a near miss within the tolerance still selects the target");
             Look(NearMiss(rock, 1.2f));
-            Frames(2); // the first frame off the target is tolerated as jitter
+            Frames(2);
             Check(game.Targeting.AimTarget == null, "gaze far from every target selects nothing");
 
             Look(new Vector2(2f, 0f));
@@ -243,7 +234,7 @@ public static class GazeLabValidation
 
             Frames(2);
             CloseEyes(5);
-            Look(new Vector2(-4f, -3f)); // looked away and came back somewhere else
+            Look(new Vector2(-4f, -3f));
             Frames(1);
             Check(game.Score == 0 && rock.enabled && game.LastFeedback.Text.Contains("moved"),
                 "blink: eyes reopening elsewhere (looking away) do not fire");
@@ -277,7 +268,7 @@ public static class GazeLabValidation
             game.ShowMenu();
             Check(game.State == GameState.Menu && CountTargets() == 0 && !game.IsPaused, "the menu removes all targets");
             Collider2D rock = Spawn(game.RockPrefab, new Vector2(2f, 0f));
-            Look(new Vector2(2f, 0f), checkHud: false); // the menu tiles cover this spot
+            Look(new Vector2(2f, 0f), checkHud: false);
             int score = game.Score;
             Frames(10);
             Check(game.Score == score && rock.enabled && game.Targeting.AimTarget == null, "the menu never fires at targets");
@@ -312,12 +303,11 @@ public static class GazeLabValidation
         static void CheckDisplayScaling()
         {
             const float scale = 1.5f;
-            var bounds = new Rect(0f, 0.02f, 1f, 0.98f); // Game view toolbar takes the top 2 %
+            var bounds = new Rect(0f, 0.02f, 1f, 0.98f);
             float bottom = 1f - bounds.height - bounds.y;
             float worst = 0f;
             foreach (Vector2 truth in new[] { new Vector2(0.01f, 0.98f), new Vector2(0.5f, 0.5f), new Vector2(0.9f, 0.1f) })
             {
-                // What Tobii reports at 150 %: the window position shrunk towards the centre.
                 Vector2 window = new Vector2(bounds.x + truth.x * bounds.width, bottom + truth.y * bounds.height);
                 Vector2 shrunk = new Vector2(0.5f + (window.x - 0.5f) / scale, 0.5f + (window.y - 0.5f) / scale);
                 Vector2 reported = new Vector2((shrunk.x - bounds.x) / bounds.width, (shrunk.y - bottom) / bounds.height);
@@ -328,8 +318,6 @@ public static class GazeLabValidation
                 "display scaling: neutral at 100 %");
         }
 
-        // ---------- helpers ----------
-
         void Start(ShotMode mode)
         {
             game.StartMode(mode);
@@ -338,13 +326,11 @@ public static class GazeLabValidation
             Frames(1);
         }
 
-        /// <summary>Frames of input update, game update and shot resolution with explicit time.</summary>
         void Frames(int count)
         {
             for (int i = 0; i < count; i++) Step();
         }
 
-        /// <summary>Steps until the condition holds; returns the number of frames used (max + 1 if never).</summary>
         int FramesUntil(Func<bool> condition, int max)
         {
             for (int i = 1; i <= max; i++)
@@ -385,7 +371,6 @@ public static class GazeLabValidation
             Frames(frames);
         }
 
-        /// <summary>A point straight above the target, the given distance outside all its colliders.</summary>
         static Vector2 NearMiss(Collider2D target, float distance)
         {
             float top = float.NegativeInfinity;
@@ -399,7 +384,7 @@ public static class GazeLabValidation
             fixture.name = "Check " + prefab.name;
             fixture.transform.position = position;
             fixture.transform.rotation = Quaternion.identity;
-            fixture.GetComponent<MovingTarget>().enabled = false; // stays where the check put it
+            fixture.GetComponent<MovingTarget>().enabled = false;
             Rigidbody2D body = fixture.GetComponent<Rigidbody2D>();
             if (body != null)
             {

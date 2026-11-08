@@ -1,18 +1,12 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>
-    /// Plays the synthesised sound effects (see <see cref="SoundSynth"/>) for game events. A small
-    /// pool of 2D audio sources lets sounds overlap, each with a slightly varied pitch.
-    /// Set up by the GameController.
-    /// </summary>
     [DisallowMultipleComponent]
     public class GameSounds : MonoBehaviour
     {
         const int Voices = 8;
-        // The same target is announced again only after the gaze stayed off it this long.
         const float LockRepeatSeconds = 0.5f;
 
         GameSettings settings;
@@ -43,10 +37,8 @@ namespace GazeLab
             gameOver = SoundSynth.GameOver();
         }
 
-        /// <summary>The volume is read from <see cref="GameSettings.soundVolume"/> on every sound.</summary>
         public void Init(GameSettings gameSettings) { settings = gameSettings; }
 
-        /// <summary>Laser, then the explosion of a rock or the crash of a satellite with the penalty jingle.</summary>
         public void Shot(TargetKind kind)
         {
             Play(laser, 0.55f, 0.06f);
@@ -70,7 +62,6 @@ namespace GazeLab
         public void BackToMenu() { Play(menu, 0.75f, 0f); }
         public void GameOver() { Play(gameOver, 0.9f, 0f, 0.35f); }
 
-        /// <summary>Quiet blip when the gaze settles on a new target (no repeats while the gaze jitters).</summary>
         public void TargetAimed(Object target, float now)
         {
             if (target == null) return;
@@ -80,7 +71,6 @@ namespace GazeLab
             lastAimedTime = now;
         }
 
-        /// <summary>Called every frame while the gaze stays on the target, so short jitter is no new lock.</summary>
         public void TargetStillAimed(Object target, float now)
         {
             if (target != null && target == lastAimed) lastAimedTime = now;

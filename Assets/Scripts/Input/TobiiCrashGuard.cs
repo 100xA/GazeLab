@@ -1,14 +1,8 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>
-    /// The Tobii native library can crash Unity when the installed Tobii runtime does not fit the SDK.
-    /// A flag in PlayerPrefs marks a running Tobii session; it is only cleared when the session ends
-    /// normally. If it is still set at the next start, Unity crashed and the game falls back to the
-    /// mouse once. Otherwise the game always starts with the eye tracker.
-    /// </summary>
     public static class TobiiCrashGuard
     {
         const string PrefSessionRunning = "GazeLab.TobiiInitPending";
@@ -17,7 +11,6 @@ namespace GazeLab
 
         public static bool CrashedLastTime { get; private set; }
 
-        /// <summary>Call once at startup. Returns whether the game should start with Tobii.</summary>
         public static bool ShouldStartWithTobii()
         {
             if (PlayerPrefs.GetInt(PrefSessionRunning, 0) == 1)

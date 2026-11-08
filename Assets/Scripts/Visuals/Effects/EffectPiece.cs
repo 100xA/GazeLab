@@ -1,14 +1,12 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>One moving, spinning, scaling part of an effect; removes itself when done.</summary>
     public sealed class EffectPiece : MonoBehaviour
     {
         public Vector3 Velocity, SpinAxis = Vector3.forward;
         public float Size = 1f, Lifetime = 0.5f, Delay, Drag, SpinSpeed;
-        /// <summary>Puffs pop up fast and shrink away; fragments keep their size and vanish at the end.</summary>
         public bool Pops;
         float age;
 
@@ -29,7 +27,6 @@ namespace GazeLab
         {
             if (t < 0.22f)
             {
-                // Overshooting ease-out: grows quickly and bulges a little.
                 float u = t / 0.22f - 1f;
                 return 1f + 2.2f * u * u * u + 1.2f * u * u;
             }

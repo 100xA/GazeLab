@@ -1,7 +1,6 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 namespace GazeLab
 {
-    /// <summary>Aim, then nod once (Tobii head pose, see <see cref="HeadNodDetector"/>).</summary>
     public sealed class NodMode : ShotMode
     {
         public override string Name { get { return "Aim + Nod"; } }

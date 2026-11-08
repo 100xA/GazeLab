@@ -1,9 +1,8 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>Deterministic random values for the model shapes (same seed, same model).</summary>
     sealed class SeededRandom
     {
         readonly System.Random random;
@@ -20,7 +19,6 @@ namespace GazeLab
             return d.normalized;
         }
 
-        /// <summary>Smooth random field on the unit sphere: a sum of three sine waves (-1..1).</summary>
         public SineField Field(float minFrequency, float maxFrequency) { return new SineField(this, minFrequency, maxFrequency); }
 
         public sealed class SineField

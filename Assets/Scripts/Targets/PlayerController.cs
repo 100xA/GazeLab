@@ -1,9 +1,8 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>The stationary ship: reports collisions, can be reset and crashes after game over.</summary>
     public class PlayerController : MonoBehaviour
     {
         const float RecoilSeconds = 0.25f;
@@ -45,7 +44,6 @@ namespace GazeLab
             SetCollidersEnabled(true);
         }
 
-        /// <summary>Game over: the ship stops colliding and falls out of the screen.</summary>
         public void Crash()
         {
             SetCollidersEnabled(false);
@@ -54,8 +52,6 @@ namespace GazeLab
             body.gravityScale = 1f;
         }
 
-        // Motion of the model only (the physics body stays put): a slow roll around the long axis,
-        // a gentle bob, a recoil kick after each shot and flickering engine flames.
         void Update()
         {
             if (model == null) return;

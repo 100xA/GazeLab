@@ -1,9 +1,8 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>Draws the HUD (IMGUI) and runs the gaze-only menu buttons. Set up by the GameController.</summary>
     [DisallowMultipleComponent]
     public class GazeHud : MonoBehaviour
     {
@@ -21,7 +20,6 @@ namespace GazeLab
             menu = new MenuView(owner);
         }
 
-        /// <summary>True if a screen point lies on a HUD control; gaze there neither aims nor fires.</summary>
         public bool BlocksGaze(Vector2 screenPoint)
         {
             Vector2 guiPoint = HudTheme.ToGui(screenPoint);

@@ -1,12 +1,8 @@
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using System;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 
-/// <summary>
-/// Opens the Main scene and enters Play mode, and gives the Game view keyboard focus whenever
-/// Play mode starts (otherwise Space/B/N only work after clicking into the Game view once).
-/// Run: Unity.exe -projectPath &lt;project&gt; -executeMethod GazeLabPlay.Run
-/// </summary>
 [InitializeOnLoad]
 public static class GazeLabPlay
 {
@@ -26,7 +22,7 @@ public static class GazeLabPlay
     {
         if (state != PlayModeStateChange.EnteredPlayMode) return;
         FocusGameView();
-        EditorApplication.delayCall += FocusGameView; // again once the editor layout has settled
+        EditorApplication.delayCall += FocusGameView;
     }
 
     static void FocusGameView()

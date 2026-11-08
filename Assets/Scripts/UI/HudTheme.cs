@@ -1,17 +1,10 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>
-    /// Look of the HUD, matched to the cartoon 3D models (<see cref="ToonModels"/>): colours of the ship (red, yellow,
-    /// teal), the rock (orange) and the satellite (blue); chunky rounded "plates" with a darker lip;
-    /// Lilita One for headings and Varela Round for text (both SIL Open Font License, in Resources/Fonts).
-    /// Layout values are design units for a 1080p screen, scaled with the Game view height.
-    /// </summary>
     public sealed class HudTheme
     {
-        // Palette shared with the 3D models
         public static readonly Color ShipRed = new Color(0.93f, 0.25f, 0.22f);
         public static readonly Color ShipYellow = new Color(0.98f, 0.84f, 0.29f);
         public static readonly Color CockpitTeal = new Color(0.36f, 0.66f, 0.73f);
@@ -19,7 +12,6 @@ namespace GazeLab
         public static readonly Color SatelliteBlue = new Color(0.2f, 0.55f, 0.92f);
         public static readonly Color WingGreen = new Color(0.47f, 0.8f, 0.45f);
 
-        // UI roles
         public static readonly Color Panel = new Color(0.09f, 0.14f, 0.2f, 0.96f);
         public static readonly Color PanelLight = new Color(0.14f, 0.21f, 0.29f, 0.98f);
         public static readonly Color Ink = new Color(0.04f, 0.07f, 0.1f);
@@ -30,22 +22,18 @@ namespace GazeLab
         public static readonly Color Bad = ShipRed;
         public static readonly Color Track = new Color(1f, 1f, 1f, 0.12f);
 
-        /// <summary>HUD scale: 1 at 1080p, larger on 4K Game views.</summary>
         public static float Scale { get { return Mathf.Clamp(Screen.height / 1080f, 0.75f, 3f); } }
         public static float Width { get { return Screen.width / Scale; } }
         public static float Height { get { return Screen.height / Scale; } }
 
-        /// <summary>Design-unit rectangle to GUI pixels.</summary>
         public static Rect R(float x, float y, float w, float h)
         {
             float s = Scale;
             return new Rect(x * s, y * s, w * s, h * s);
         }
 
-        /// <summary>Unity screen point (bottom-left origin) to GUI point (top-left origin).</summary>
         public static Vector2 ToGui(Vector2 screenPoint) { return new Vector2(screenPoint.x, Screen.height - screenPoint.y); }
 
-        /// <summary>Darker shade of a colour, used for the lip under plates and text shadows.</summary>
         public static Color Shade(Color color, float factor = 0.55f)
         {
             return new Color(color.r * factor, color.g * factor, color.b * factor, color.a);
@@ -59,7 +47,6 @@ namespace GazeLab
         Font headingFont, bodyFont;
         float builtForScale = -1f;
 
-        /// <summary>Call at the start of OnGUI; rebuilds fonts and textures when the scale changes.</summary>
         public void Prepare()
         {
             if (Dot == null) Dot = MakeRound(32, 15.5f, 0f);
@@ -106,19 +93,14 @@ namespace GazeLab
             Release(ring);
         }
 
-        // ---------- drawing ----------
-
-        /// <summary>Flat rounded rectangle.</summary>
         public void Box(Rect rect, Color color)
         {
             if (Event.current.type != EventType.Repaint) return;
             GUI.color = color;
-            // Small elements (bars, segments) get a smaller corner radius so the 9-slice fits.
             GUIStyle style = Mathf.Min(rect.width, rect.height) < fillStyle.border.left * 2 ? fillSmallStyle : fillStyle;
             style.Draw(rect, false, false, false, false);
         }
 
-        /// <summary>Chunky rounded plate with a darker lip below, in the cartoon style of the models.</summary>
         public void Plate(Rect rect, Color color, float lip = 5f)
         {
             float l = lip * Scale;
@@ -126,7 +108,6 @@ namespace GazeLab
             Box(rect, color);
         }
 
-        /// <summary>Thick rounded outline.</summary>
         public void Outline(Rect rect, Color color)
         {
             if (Event.current.type != EventType.Repaint) return;
@@ -147,7 +128,6 @@ namespace GazeLab
             GUI.Label(rect, text, style);
         }
 
-        /// <summary>Heading text with a hard drop shadow (cartoon style).</summary>
         public static void Shadowed(Rect rect, string text, GUIStyle style, Color color, Color shadow, float offset = 3f)
         {
             float o = offset * Scale;
@@ -155,7 +135,6 @@ namespace GazeLab
             Write(rect, text, style, color);
         }
 
-        /// <summary>Invisible button over an already drawn control.</summary>
         public static bool Clicked(Rect rect) { return GUI.Button(rect, GUIContent.none, GUIStyle.none); }
 
         public static void Fill(Rect rect, Color color)
@@ -173,14 +152,12 @@ namespace GazeLab
             GUI.matrix = previous;
         }
 
-        /// <summary>Ring from 12 o'clock clockwise, filled to <paramref name="progress"/> (0..1).</summary>
         public static void Ring(Vector2 center, float radius, float progress, float width)
         {
             const int Segments = 72;
             int count = Mathf.CeilToInt(Mathf.Clamp01(progress) * Segments);
             for (int i = 0; i < count; i++)
             {
-                // Segments overlap slightly so thick rings have no gaps.
                 float a = (i - 0.3f) * Mathf.PI * 2 / Segments - Mathf.PI / 2;
                 float b = (i + 1.3f) * Mathf.PI * 2 / Segments - Mathf.PI / 2;
                 Line(center + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * radius,
@@ -188,7 +165,6 @@ namespace GazeLab
             }
         }
 
-        /// <summary>Corner brackets around a rectangle (target highlight).</summary>
         public static void Corners(Rect r, float width, float length)
         {
             Line(new Vector2(r.xMin, r.yMin), new Vector2(r.xMin + length, r.yMin), width);
@@ -201,8 +177,6 @@ namespace GazeLab
             Line(new Vector2(r.xMax, r.yMax), new Vector2(r.xMax, r.yMax - length), width);
         }
 
-        // ---------- construction ----------
-
         static GUIStyle Font(Font font, int size, TextAnchor anchor)
         {
             var style = new GUIStyle(GUI.skin.label)
@@ -210,7 +184,7 @@ namespace GazeLab
                 font = font, fontSize = Mathf.RoundToInt(size * Scale), alignment = anchor, wordWrap = true,
                 padding = new RectOffset(0, 0, 0, 0), margin = new RectOffset(0, 0, 0, 0)
             };
-            if (font == null) style.fontStyle = size >= 16 ? FontStyle.Bold : FontStyle.Normal; // fallback: Arial
+            if (font == null) style.fontStyle = size >= 16 ? FontStyle.Bold : FontStyle.Normal;
             style.normal.textColor = Color.white;
             return style;
         }
@@ -222,7 +196,6 @@ namespace GazeLab
             return style;
         }
 
-        /// <summary>Anti-aliased disc, or a ring of the given thickness.</summary>
         static Texture2D MakeRound(int size, float radius, float thickness)
         {
             var texture = new Texture2D(size, size, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };

@@ -1,7 +1,6 @@
 # Gaze Lab – Eye Gaze Interaction exercise
 
-Team: **Jan Biernacki, Kürsat, Paul, Malte**
-Matriculation numbers: **TO BE PROVIDED**
+Team: **Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391**
 
 This project adapts the Moodle Space Shooter starter for the Eye Gaze Interaction exercise. The stationary ship sits at the left of the playfield. Rocks give +20 points and satellites give −100. The laser only fires when the first object along the cannon path is the selected target. The game reads gaze from the **Tobii 4C** through the course **Tobii Unity SDK**. There is also a clearly labelled **mouse simulation** for development without a tracker.
 
@@ -83,8 +82,8 @@ Unity opens, runs the checks and closes again (exit code 0 = passed). On our PC,
 
 ## Submission (three separate files)
 
-1. `GazeLab-<names>.zip`: this Unity project. Keep `Assets`, `Packages`, `ProjectSettings` and this README. Leave out `Library`, `Temp`, `Obj`, `Logs` and builds.
-2. `GazeLab-<names>.pdf`: about 400 words on C1 (Midas touch), C2 (feedback) and C3 (UI design).
-3. `GazeLab-<names>.mp4`/`.mov`: compressed video of the game with the real tracker and the gaze marker visible.
+1. `GazeLab-Biernacki_Luehrs_Yurdakul_Prigge.zip`: this Unity project. Keep `Assets`, `Packages`, `ProjectSettings` and this README. Leave out `Library`, `Temp`, `Obj`, `Logs` and builds.
+2. `GazeLab-Biernacki_Luehrs_Yurdakul_Prigge.pdf`: about 400 words on C1 (Midas touch), C2 (feedback) and C3 (UI design).
+3. `GazeLab-Biernacki_Luehrs_Yurdakul_Prigge.mp4`/`.mov`: compressed video of the game with the real tracker and the gaze marker visible.
 
-Add all names and matriculation numbers to the report, the source headers and the video, and replace every **TO BE PROVIDED**.
+The full team names and matriculation numbers appear above, in the source headers and in the in-game footer. Include the same attribution in the report and video.

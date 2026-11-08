@@ -1,14 +1,9 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using System;
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>
-    /// Reads the active gaze source once per frame and derives the confirmation signals used by the
-    /// shooting modes: blink duration and head nods. The game starts with the Tobii tracker; only
-    /// after Tobii crashed Unity does it start once with the mouse (see <see cref="TobiiCrashGuard"/>).
-    /// </summary>
     [DisallowMultipleComponent]
     public class GazeInput : MonoBehaviour
     {
@@ -20,7 +15,6 @@ namespace GazeLab
         MouseGazeSource mouse;
         TobiiGazeSource tobii;
 
-        /// <summary>Raised whenever the source changes; pending selections must be cancelled.</summary>
         public event Action SourceChanged;
 
         public IGazeSource Source { get; private set; }
@@ -31,14 +25,11 @@ namespace GazeLab
         public string StatusText { get { return Gaze.Status; } }
         public BlinkDetector Blink { get { return blink; } }
 
-        /// <summary>Set by the game while a mode needs head-pose data.</summary>
         public bool TrackHeadPose { get; set; }
-        /// <summary>True for exactly one update when a head nod completes.</summary>
         public bool NodDetected { get; private set; }
         public HeadReading Head { get; private set; }
         public float HeadPitchDeviation { get { return nod.PitchDeviation; } }
 
-        /// <summary>Windows display scaling seen by the Tobii source (1 while the mouse is used).</summary>
         public float DisplayScale { get { return IsSimulation || tobii == null ? 1f : tobii.DisplayScale; } }
 
         void Awake()
@@ -61,7 +52,6 @@ namespace GazeLab
 
         public void UseMouse() { SetSource(mouse); }
 
-        /// <summary>Switches the gaze source (also used by the automated checks to inject a fake source).</summary>
         public void SetSource(IGazeSource next)
         {
             if (next == null || next == Source) return;
@@ -76,7 +66,6 @@ namespace GazeLab
             if (SourceChanged != null) SourceChanged();
         }
 
-        /// <summary>One input update. Called by Update, or directly with explicit time by the checks.</summary>
         public void Tick(float now, float deltaTime, bool windowFocused)
         {
             GazeSample sample = windowFocused ? Source.ReadGaze(now) : GazeSample.Invalid("Game window inactive - paused");

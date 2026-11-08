@@ -1,4 +1,4 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using UnityEngine;
 #if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
 using Tobii.Gaming;
@@ -7,18 +7,15 @@ using Tobii.Gaming.Internal;
 
 namespace GazeLab
 {
-    /// <summary>Gaze and head pose of the Tobii 4C through the course Tobii Unity SDK (Windows only).</summary>
     public sealed class TobiiGazeSource : IGazeSource
     {
         readonly GazeInputSettings settings;
 
         public TobiiGazeSource(GazeInputSettings settings) { this.settings = settings; }
 
-        /// <summary>Windows display scaling detected at the last sample (1 = 100 %).</summary>
         public float DisplayScale { get; private set; } = 1f;
         public bool IsSimulation { get { return false; } }
 
-        // The crash guard is armed before the native library is touched for the first time.
         public void Activate() { TobiiCrashGuard.BeginSession(); }
         public void Deactivate() { TobiiCrashGuard.EndSession(); }
 
@@ -33,7 +30,6 @@ namespace GazeLab
             if (!sample.IsValid || age < 0f || age > settings.maximumSampleAge)
                 return GazeSample.Invalid("Gaze lost (eyes closed?) - paused", eyesClosed: true);
 
-            // Viewport uses Unity's bottom-left origin. Do not invert Y.
             Vector2 viewport = sample.Viewport;
             DisplayScale = DisplayScaling.Current();
             if (settings.compensateDisplayScaling && DisplayScale > 1.01f)

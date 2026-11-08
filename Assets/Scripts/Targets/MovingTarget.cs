@@ -1,12 +1,8 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>
-    /// A shootable object that drifts from right to left while the round is running. Its 3D model
-    /// is attached on Awake (see <see cref="ToonModels"/>) and animated on top of the drift.
-    /// </summary>
     public abstract class MovingTarget : MonoBehaviour
     {
         const float DespawnX = -16f;
@@ -19,14 +15,10 @@ namespace GazeLab
         public abstract bool DamagesShip { get; }
         public abstract int Points(GameSettings settings);
 
-        /// <summary>World units per second towards the ship.</summary>
         protected abstract float Speed { get; }
-        /// <summary>Rotation in the screen plane in degrees per second.</summary>
         protected abstract float Spin { get; }
 
-        /// <summary>Picks the model (and any random motion parameters) for this target.</summary>
         protected abstract Mesh CreateModel();
-        /// <summary>3D motion of the model on top of the spin in the screen plane.</summary>
         protected abstract void Animate(Transform model, float age);
 
         public void Init(GameController owner) { game = owner; }
@@ -47,7 +39,6 @@ namespace GazeLab
             if (transform.position.x < DespawnX) Destroy(gameObject);
         }
 
-        /// <summary>Destroyed by the laser or a collision: explosion effect, then <see cref="Remove"/>.</summary>
         public void Explode()
         {
             Collider2D body = GetComponent<Collider2D>();
@@ -56,7 +47,6 @@ namespace GazeLab
             Remove();
         }
 
-        /// <summary>Removes the target at once (colliders off) so it cannot be hit a second time.</summary>
         public void Remove()
         {
             foreach (Collider2D part in GetComponentsInChildren<Collider2D>()) part.enabled = false;

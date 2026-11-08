@@ -1,14 +1,9 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using UnityEngine;
 using UnityEngine.Serialization;
 
 namespace GazeLab
 {
-    /// <summary>
-    /// Owns the round (menu, playing, game over), score and ship hits, and wires the other parts
-    /// together: gaze input, HUD, targeting, laser and spawner. Each frame it asks the active
-    /// <see cref="ShotMode"/> whether to fire, then updates the aim with the newest gaze sample.
-    /// </summary>
     [DisallowMultipleComponent]
     public class GameController : MonoBehaviour
     {
@@ -41,7 +36,6 @@ namespace GazeLab
         public GameObject Spaceship { get { return spaceship; } }
 
         public int HullPercent { get { return Mathf.Max(0, 100 * (settings.maxShipHits - ShipHits) / Mathf.Max(1, settings.maxShipHits)); } }
-        /// <summary>Playing, but no usable gaze: targets and spawning stop.</summary>
         public bool IsPaused { get { return State == GameState.Playing && !Gaze.HasValidGaze && !Mode.ToleratesGazeLoss(Gaze, settings); } }
         public bool IsRunning { get { return State == GameState.Playing && !IsPaused; } }
         public float ModeProgress { get { return State == GameState.Playing ? Mode.Progress(Targeting, settings) : 0f; } }
@@ -68,10 +62,8 @@ namespace GazeLab
 
         void Update() { Tick(Time.unscaledTime, Time.deltaTime); }
 
-        // After all Updates: targets have moved and the newest gaze sample is available.
         void LateUpdate() { ResolveShots(Time.unscaledTime, Time.unscaledDeltaTime); }
 
-        /// <summary>Laser timeout and spawning.</summary>
         public void Tick(float now, float deltaTime)
         {
             Cannon.UpdateBeam(now, settings.beamVisibleSeconds);
@@ -83,13 +75,11 @@ namespace GazeLab
             spawner.SpawnRandom();
         }
 
-        /// <summary>Confirmation by the active mode first, then aiming with the current gaze sample.</summary>
         public void ResolveShots(float now, float deltaTime)
         {
             if (State != GameState.Playing) { Targeting.Clear(); return; }
             if (IsPaused) { Targeting.ResetAim(); return; }
 
-            // The confirmation acts on the target locked in earlier frames: a blink or nod moves the eyes.
             var context = new ShotContext(Gaze, Targeting, settings, hud.BlocksGaze);
             ShotDecision decision = Mode.Decide(context);
             if (decision.Fire) FireAtLockedTarget(decision, now);
@@ -98,7 +88,6 @@ namespace GazeLab
             bool gazeUsable = Gaze.HasValidGaze && !hud.BlocksGaze(Gaze.ScreenPoint);
             Collider2D aimedBefore = Targeting.AimTarget;
             Targeting.UpdateAim(gazeUsable, Gaze.ScreenPoint, now, deltaTime);
-            // Audible feedback when the gaze settles on a target
             if (Targeting.AimTarget != null && Targeting.AimTarget != aimedBefore) sounds.TargetAimed(Targeting.AimTarget, now);
             else sounds.TargetStillAimed(Targeting.AimTarget, now);
         }
@@ -132,7 +121,6 @@ namespace GazeLab
 
         void SetFeedback(string text, bool fired, float now) { LastFeedback = new ShotFeedback(text, fired, now); }
 
-        /// <summary>Called by the ship when a target hits it. Only rocks damage the hull.</summary>
         public void OnShipCollision(MovingTarget target)
         {
             if (!IsRunning || target == null) return;
@@ -149,7 +137,6 @@ namespace GazeLab
             if (ShipHits >= settings.maxShipHits) EndGame();
         }
 
-        /// <summary>Starts a fresh round with the mode chosen in the gaze menu.</summary>
         public void StartMode(ShotMode mode)
         {
             if (mode != null) Mode = mode;
@@ -172,7 +159,6 @@ namespace GazeLab
             sounds.RoundStart();
         }
 
-        /// <summary>Shows the gaze-operated mode menu; no targets exist and nothing can be fired.</summary>
         public void ShowMenu()
         {
             if (State == GameState.GameOver) sounds.BackToMenu();

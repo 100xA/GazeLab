@@ -1,9 +1,8 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>Rock: worth points when shot, damages the hull when it hits the ship.</summary>
     public class RockController : MovingTarget
     {
         Quaternion startRotation;
@@ -24,7 +23,6 @@ namespace GazeLab
             return ToonModels.Rock(Random.Range(0, ToonModels.RockVariants));
         }
 
-        // Tumbles around a random axis, so the craters roll into view.
         protected override void Animate(Transform model, float age)
         {
             model.localRotation = Quaternion.AngleAxis(age * tumbleSpeed, tumbleAxis) * startRotation;

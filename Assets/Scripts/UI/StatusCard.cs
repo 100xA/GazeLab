@@ -1,25 +1,26 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>Top-left status card (mode, score, hull, tracking state), input switch and team footer.</summary>
     public sealed class StatusCard
     {
-        const string TeamLine = "Team: Jan Biernacki · Kürsat · Paul · Malte   |   Matriculation numbers: TO BE PROVIDED";
+        const string TeamFirstLine = "Jan Biernacki, 3275061; Malte Lührs, 3138900";
+        const string TeamSecondLine = "Kürsat Yurdakul, 3282791; Paul Prigge, 3097391";
 
-        static readonly Rect Card = new Rect(16, 16, 384, 156);   // design units
+        static readonly Rect Card = new Rect(16, 16, 384, 156);
         static readonly Rect Controls = new Rect(16, 186, 384, 34);
 
-        /// <summary>Screen area covered by card and controls (GUI pixels); gaze there never aims.</summary>
         public static Rect Area { get { return HudTheme.R(Card.x, Card.y, Card.width, Controls.yMax + 5 - Card.y); } }
 
         public void Draw(HudTheme theme, GameController game, GazeInput gaze)
         {
             DrawCard(theme, game, gaze);
             DrawControls(theme, gaze);
-            HudTheme.Write(HudTheme.R(16, HudTheme.Height - 30, 760, 22), TeamLine, theme.Small,
-                new Color(HudTheme.Muted.r, HudTheme.Muted.g, HudTheme.Muted.b, 0.9f));
+            float footerWidth = Mathf.Min(760f, HudTheme.Width - 32f);
+            Color footerColor = new Color(HudTheme.Muted.r, HudTheme.Muted.g, HudTheme.Muted.b, 0.9f);
+            HudTheme.Write(HudTheme.R(16, HudTheme.Height - 48, footerWidth, 22), TeamFirstLine, theme.Small, footerColor);
+            HudTheme.Write(HudTheme.R(16, HudTheme.Height - 26, footerWidth, 22), TeamSecondLine, theme.Small, footerColor);
         }
 
         void DrawCard(HudTheme theme, GameController game, GazeInput gaze)

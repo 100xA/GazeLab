@@ -1,18 +1,15 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>Gaze-operated overlays: mode selection at start, Restart / Change mode after game over.</summary>
     public sealed class MenuView
     {
-        // One colour per mode tile, taken from the 3D models.
         static readonly Color[] TileColors = { HudTheme.CockpitTeal, HudTheme.ShipYellow, HudTheme.RockOrange, HudTheme.SatelliteBlue };
 
         readonly GameController game;
         readonly GazeButtons buttons = new GazeButtons();
-        // Buttons are rebuilt only when what they show or the screen size changes.
         GameState builtState;
         ShotMode builtMode;
         int builtWidth = -1, builtHeight = -1;

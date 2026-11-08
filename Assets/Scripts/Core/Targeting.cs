@@ -1,13 +1,8 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>
-    /// Finds the target under the gaze (with a tolerance for tracker inaccuracy), checks the line of
-    /// fire and keeps the last aimed target locked for a short time, so a blink, nod or key press
-    /// can still confirm it after the eyes moved.
-    /// </summary>
     public sealed class Targeting
     {
         readonly Camera cam;
@@ -24,9 +19,7 @@ namespace GazeLab
             this.settings = settings;
         }
 
-        /// <summary>Target currently under the gaze with a clear line of fire, or null.</summary>
         public Collider2D AimTarget { get; private set; }
-        /// <summary>How long <see cref="AimTarget"/> has been looked at without interruption.</summary>
         public float AimSeconds { get; private set; }
 
         public void ResetAim()
@@ -51,13 +44,11 @@ namespace GazeLab
             Collider2D candidate = FindTarget(world);
             if (candidate == null)
             {
-                // Brief jitter off the target keeps the progress frozen instead of resetting it.
                 bool jitter = AimTarget != null && IsTarget(AimTarget) && now - lockedTime <= settings.aimLossToleranceSeconds;
                 if (!jitter) ResetAim();
                 return;
             }
 
-            // Gaze inside the target aims at that spot, a near miss aims at the target centre.
             Vector2 aim = candidate.OverlapPoint(world) ? world : (Vector2)candidate.bounds.center;
             Vector2 hitPoint;
             if (!cannon.HasClearShot(candidate, aim, out hitPoint)) { ResetAim(); return; }
@@ -69,13 +60,11 @@ namespace GazeLab
             lockedTime = now;
         }
 
-        /// <summary>The target aimed at within the last <paramref name="graceSeconds"/>, or null.</summary>
         public Collider2D LockedTarget(float now, float graceSeconds)
         {
             return locked != null && IsTarget(locked) && now - lockedTime <= graceSeconds ? locked : null;
         }
 
-        /// <summary>Same spot on the locked target as when it was aimed at (targets keep moving).</summary>
         public Vector2 LockedAimPoint
         {
             get { return locked == null ? Vector2.zero : (Vector2)locked.transform.position + lockedOffset; }
@@ -91,7 +80,6 @@ namespace GazeLab
         {
             Collider2D exact = FrontmostTargetAt(world);
             if (exact != null || settings.gazeToleranceWorld <= 0f) return exact;
-            // Eye trackers are accurate to about one degree: accept the nearest target close by.
             Collider2D nearest = null;
             float nearestDistance = float.PositiveInfinity;
             foreach (Collider2D candidate in Physics2D.OverlapCircleAll(world, settings.gazeToleranceWorld))
@@ -121,8 +109,6 @@ namespace GazeLab
             return model != null && model.enabled;
         }
 
-        // The models are drawn by depth (see GazeLab/Toon), so the target nearer to the camera is the
-        // one seen in front; selecting it keeps visible overlaps and gaze acquisition in agreement.
         bool IsInFront(Collider2D candidate, Collider2D previous)
         {
             float forward = Vector3.Dot(candidate.transform.position - previous.transform.position, cam.transform.forward);

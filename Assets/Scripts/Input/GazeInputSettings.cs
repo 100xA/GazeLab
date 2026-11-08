@@ -1,10 +1,9 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using System;
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>Tuning values of the gaze input, editable in the Inspector of <see cref="GazeInput"/>.</summary>
     [Serializable]
     public class GazeInputSettings
     {

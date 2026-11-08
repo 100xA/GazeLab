@@ -1,12 +1,8 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>
-    /// Aim, then press Space or click. Comparison baseline only: the exercise does not allow a
-    /// button press as shooting confirmation.
-    /// </summary>
     public sealed class ButtonMode : ShotMode
     {
         public override string Name { get { return "Aim + Space / Click"; } }

@@ -1,10 +1,8 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 namespace GazeLab
 {
-    /// <summary>A provider of gaze (and optionally head) data: Tobii tracker, mouse simulation or a test fake.</summary>
     public interface IGazeSource
     {
-        /// <summary>True for the labelled mouse simulation (no smoothing, shown in amber).</summary>
         bool IsSimulation { get; }
         void Activate();
         void Deactivate();

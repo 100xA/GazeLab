@@ -1,7 +1,6 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 namespace GazeLab
 {
-    /// <summary>Result of the last confirmation attempt, shown to the player.</summary>
     public struct ShotFeedback
     {
         public readonly string Text;

@@ -1,15 +1,10 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>
-    /// Clearly labelled development mode without a tracker: the mouse pointer replaces the gaze,
-    /// holding B simulates closed eyes and N simulates a head nod.
-    /// </summary>
     public sealed class MouseGazeSource : IGazeSource
     {
-        /// <summary>Optional extra text for the status line (e.g. a crash notice).</summary>
         public string Notice { get; set; }
 
         public bool IsSimulation { get { return true; } }

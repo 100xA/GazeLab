@@ -1,13 +1,11 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>Meshes of the shot effects: fire puffs and the fragments of destroyed targets (radius about 1).</summary>
     static class EffectModels
     {
-        /// <summary>Half glowing ball: bright, but the light bands still show a round ball of fire.</summary>
         public static Mesh Puff(PuffColor color)
         {
             var b = new ToonMeshBuilder().Style(Tint(color), 0.45f);
@@ -16,7 +14,6 @@ namespace GazeLab
             return b.Build("GazeLab Puff " + color);
         }
 
-        /// <summary>Lumpy rock chunk: an icosahedron with random corner distances.</summary>
         public static Mesh RockChunk(int variant)
         {
             var random = new SeededRandom(31 + variant * 101);
@@ -29,7 +26,6 @@ namespace GazeLab
             return b.Build("GazeLab Rock Chunk " + variant);
         }
 
-        /// <summary>Satellite fragment: a broken solar panel (variants 0, 1) or a metal or gold shard (2, 3).</summary>
         public static Mesh SatellitePart(int variant)
         {
             var b = new ToonMeshBuilder();

@@ -1,12 +1,8 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>
-    /// Colours of the 3D models. The main colours are the HUD palette (<see cref="HudTheme"/>), so
-    /// models and HUD match; these are the extra material colours used only by the models.
-    /// </summary>
     static class ModelPalette
     {
         public static readonly Color Metal = new Color(0.74f, 0.79f, 0.85f);

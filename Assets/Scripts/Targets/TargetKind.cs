@@ -1,6 +1,5 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 namespace GazeLab
 {
-    /// <summary>What a target is; decides its explosion fragments and sounds.</summary>
     public enum TargetKind { Rock, Satellite }
 }

@@ -1,14 +1,12 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>One gaze reading in Unity screen pixels (bottom-left origin).</summary>
     public struct GazeSample
     {
         public readonly bool IsValid;
         public readonly Vector2 ScreenPoint;
-        /// <summary>The tracker works but currently sees no eyes (both eyes closed). Used for blinks.</summary>
         public readonly bool EyesClosed;
         public readonly string Status;
 

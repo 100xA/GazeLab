@@ -1,12 +1,10 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 namespace GazeLab
 {
-    /// <summary>One head-pose reading (degrees) or a simulated nod.</summary>
     public struct HeadReading
     {
         public readonly bool IsAvailable;
         public readonly float Pitch, Yaw;
-        /// <summary>Mouse simulation: a nod was triggered by key press.</summary>
         public readonly bool NodPressed;
         public readonly string Status;
 

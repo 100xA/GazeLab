@@ -1,13 +1,12 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 namespace GazeLab
 {
-    /// <summary>Eyes only: a target fires after it was looked at for <see cref="GameSettings.dwellSeconds"/>.</summary>
     public sealed class DwellMode : ShotMode
     {
         public override string Name { get { return "Aim + Hold (Dwell)"; } }
         public override string Description(GameSettings settings)
         {
-            return "Look at a target and keep looking for " + Format.Number(settings.dwellSeconds, "0.0#") + " s. Eyes only."; // no line break before "s"
+            return "Look at a target and keep looking for " + Format.Number(settings.dwellSeconds, "0.0#") + " s. Eyes only.";
         }
 
         public override string Instruction(GameSettings settings)

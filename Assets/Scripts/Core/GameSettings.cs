@@ -1,10 +1,9 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using System;
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>All gameplay tuning values in one place, editable in the Inspector of the GameController.</summary>
     [Serializable]
     public class GameSettings
     {

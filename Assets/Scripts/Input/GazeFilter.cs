@@ -1,9 +1,8 @@
-// Team: Jan Biernacki, Kürsat, Paul, Malte | Matriculation numbers: TO BE PROVIDED
+// Jan Biernacki, 3275061; Malte Lührs, 3138900; Kürsat Yurdakul, 3282791; Paul Prigge, 3097391
 using UnityEngine;
 
 namespace GazeLab
 {
-    /// <summary>Damps fixation jitter of the tracker, but follows saccades (large jumps) immediately.</summary>
     public sealed class GazeFilter
     {
         readonly GazeInputSettings settings;
@@ -22,7 +21,6 @@ namespace GazeLab
                 hasValue = true;
                 return raw;
             }
-            // Frame-rate independent exponential smoothing; 'smoothing' is the retention per 1/60 s.
             float keep = Mathf.Pow(Mathf.Clamp(settings.smoothing, 0f, 0.95f), deltaTime * 60f);
             smoothed = Vector2.Lerp(raw, smoothed, keep);
             return smoothed;
